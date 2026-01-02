@@ -39,9 +39,16 @@ export const ExecutorView: React.FC<ExecutorViewProps> = ({ task, onUpdateTask, 
       timestamp: Date.now(),
       hoursSpent: Number(hoursSpent),
       comment,
-      attachmentName: fileName || undefined,
-      attachmentData: fileData
+      attachmentName: fileName || null,
+      attachmentData: fileData || null
     };
+
+    // Basic Size Check (approx 800KB limit for safety, Firestore is 1MB)
+    if (fileData && fileData.length > 800 * 1024) {
+      alert('附件檔案過大！請上傳小於 800KB 的圖片/文件。');
+      setIsSubmitting(false);
+      return;
+    }
 
     const updatedTask: Task = {
       ...task,
