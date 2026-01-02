@@ -56,6 +56,17 @@ const SetupScreen = ({ onSetup }: { onSetup: (name: string, email: string, passw
               onChange={(e) => setEmail(e.target.value)}
             />
           </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">設定密碼</label>
+            <input
+              required
+              type="password"
+              className="w-full p-3 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 transition"
+              placeholder="請設定登入密碼"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+          </div>
           <button
             type="submit"
             className="w-full bg-blue-600 text-white py-3 rounded-lg font-bold hover:bg-blue-700 transition flex items-center justify-center"
