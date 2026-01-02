@@ -88,8 +88,6 @@ const LoginScreen = ({ users, onLogin, pendingTaskId }: { users: User[], onLogin
         alert('密碼錯誤！');
         return;
       }
-      // Backward compatibility: if no password set (legacy users), assume okay or prompt?
-      // For security upgrade, we just allow login but maybe prompt to set password later.
       onLogin(u);
     }
   };
@@ -170,49 +168,52 @@ export default function App() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Load initial data and check URL
+  // Real-time Subscriptions
   useEffect(() => {
-    refreshData();
+    // Subscribe to all data streams
+    const unsubscribeUsers = dataService.subscribeToUsers(setUsers);
+    const unsubscribeGroups = dataService.subscribeToGroups(setGroups);
+    const unsubscribeTasks = dataService.subscribeToTasks((newTasks) => {
+      setTasks(newTasks);
+      setIsLoading(false);
+    });
 
     // Check for task ID in URL
     const params = new URLSearchParams(window.location.search);
     const tid = params.get('taskId');
-    if (tid) {
-      setPendingTaskId(tid);
-    }
+    if (tid) setPendingTaskId(tid);
+
+    return () => {
+      unsubscribeUsers();
+      unsubscribeGroups();
+      unsubscribeTasks();
+    };
   }, []);
 
-  const refreshData = () => {
-    setTasks(dataService.getTasks());
-    setUsers(dataService.getUsers());
-    setGroups(dataService.getGroups());
-  };
-
-  const handleSetupAdmin = (name: string, email: string) => {
+  const handleSetupAdmin = async (name: string, email: string, password: string) => {
     const newAdmin: User = {
       id: `admin-${Date.now()}`,
       name: name,
       email: email,
-      role: 'MANAGER'
+      role: 'MANAGER',
+      password: password
     };
-    dataService.addUser(newAdmin);
-    refreshData();
-    // Automatically login
+    await dataService.addUser(newAdmin);
+    // Auto login
     setCurrentUser(newAdmin);
-    setView('USER_MANAGEMENT'); // Direct to user management to add employees
+    setView('USER_MANAGEMENT');
     alert(`歡迎 ${name}！系統已初始化。請先至「人員與群組」新增您的團隊成員。`);
   };
 
   const handleLogin = (user: User) => {
     setCurrentUser(user);
 
-    // Handle Pending Task Redirect
     if (pendingTaskId) {
-      const task = dataService.getTaskById(pendingTaskId);
+      const task = tasks.find(t => t.id === pendingTaskId);
       if (task) {
         if (user.role === 'EXECUTOR') {
-          // Validate assignment
           const isAssigned = task.assigneeType === 'USER' ? task.assigneeId === user.id :
             groups.find(g => g.id === task.assigneeId)?.memberIds.includes(user.id);
 
@@ -225,15 +226,19 @@ export default function App() {
             alert('您沒有權限查看此任務，或任務非指派給您。');
           }
         } else {
-          alert(`主管模式：已檢測到任務連結 (${task.title})，正在前往儀表板。`);
+          // Manager
+          setSelectedTask(task);
         }
       }
       window.history.replaceState({}, '', window.location.pathname);
       setPendingTaskId(null);
     }
 
-    // Default Routing
-    setView('DASHBOARD');
+    if (user.role === 'EXECUTOR') {
+      // No special view set needed, it renders list by default
+    } else {
+      setView('DASHBOARD');
+    }
     setSelectedTask(null);
   };
 
@@ -244,47 +249,37 @@ export default function App() {
   };
 
   // Manager Actions
-  const handleCreateTask = (task: Task) => {
-    dataService.addTask(task);
-    refreshData();
-    // Do NOT reset view here, wait for modal in TaskForm to close
-    // TaskForm handles onCancel which sets view to Dashboard
+  const handleCreateTask = async (task: Task) => {
+    await dataService.addTask(task);
+    setView('DASHBOARD');
   };
 
-  const handleUserAdd = (user: User) => {
-    dataService.addUser(user);
-    refreshData();
+  const handleUserAdd = async (user: User) => {
+    await dataService.addUser(user);
   };
 
-  const handleUserUpdate = (user: User) => {
-    dataService.updateUser(user);
-    refreshData();
+  const handleUserUpdate = async (user: User) => {
+    await dataService.updateUser(user);
   };
 
-
-
-  const handleUserDelete = (id: string) => {
+  const handleUserDelete = async (id: string) => {
     if (confirm('確定要刪除此使用者嗎？')) {
-      dataService.deleteUser(id);
-      refreshData();
+      await dataService.deleteUser(id);
       if (currentUser?.id === id) {
         handleLogout();
       }
     }
   };
 
-  const handleGroupAdd = (group: Group) => {
-    dataService.addGroup(group);
-    refreshData();
+  const handleGroupAdd = async (group: Group) => {
+    await dataService.addGroup(group);
   };
 
-  const handleGroupDelete = (id: string) => {
+  const handleGroupDelete = async (id: string) => {
     if (confirm('確定要刪除此群組嗎？')) {
-      dataService.deleteGroup(id);
-      refreshData();
+      await dataService.deleteGroup(id);
     }
   };
-
 
   const handleTaskClick = (task: Task) => {
     setSelectedTask(task);
@@ -292,13 +287,20 @@ export default function App() {
   };
 
   // Executor Actions
-  const handleTaskUpdate = (updatedTask: Task) => {
-    dataService.updateTask(updatedTask);
-    refreshData();
+  const handleTaskUpdate = async (updatedTask: Task) => {
+    await dataService.updateTask(updatedTask);
     setSelectedTask(updatedTask);
   };
 
   // --- Render Logic ---
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
 
   if (users.length === 0) {
     return <SetupScreen onSetup={handleSetupAdmin} />;
@@ -320,11 +322,25 @@ export default function App() {
         </div>
       );
     }
+
+    // Filter tasks for executor locally
+    const myTasks = tasks.filter(task => {
+      if (task.assigneeType === 'USER' && task.assigneeId === currentUser.id) return true;
+
+      // Find user's groups
+      const userGroupIds = groups
+        .filter(g => g.memberIds.includes(currentUser.id))
+        .map(g => g.id);
+
+      if (task.assigneeType === 'GROUP' && userGroupIds.includes(task.assigneeId)) return true;
+      return false;
+    });
+
     return (
       <div className="min-h-screen bg-gray-50">
         <ExecutorTaskList
           currentUser={currentUser}
-          tasks={dataService.getTasksForUser(currentUser.id)}
+          tasks={myTasks}
           groups={groups}
           onSelectTask={setSelectedTask}
           onLogout={handleLogout}
@@ -401,12 +417,10 @@ export default function App() {
         <header className="flex justify-between items-center mb-8">
           <div>
             <h1 className="text-2xl font-bold text-gray-800">
-
               {view === 'DASHBOARD' ? '專案進度總覽' :
                 view === 'CREATE_TASK' ? '任務分配中心' :
                   view === 'USER_MANAGEMENT' ? '系統人員管理' : '任務詳細資訊'}
             </h1>
-
             <p className="text-gray-500 text-sm mt-1">
               {new Date().toLocaleDateString('zh-TW', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' })}
             </p>

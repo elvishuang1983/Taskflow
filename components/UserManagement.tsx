@@ -5,11 +5,11 @@ import { Plus, Trash2, UserPlus, Users, X } from 'lucide-react';
 interface UserManagementProps {
   users: User[];
   groups: Group[];
-  onAddUser: (user: User) => void;
-  onUpdateUser: (user: User) => void;
-  onDeleteUser: (id: string) => void;
-  onAddGroup: (group: Group) => void;
-  onDeleteGroup: (id: string) => void;
+  onAddUser: (user: User) => Promise<void> | void;
+  onUpdateUser: (user: User) => Promise<void> | void;
+  onDeleteUser: (id: string) => Promise<void> | void;
+  onAddGroup: (group: Group) => Promise<void> | void;
+  onDeleteGroup: (id: string) => Promise<void> | void;
 }
 
 export const UserManagement: React.FC<UserManagementProps> = ({
@@ -22,45 +22,85 @@ export const UserManagement: React.FC<UserManagementProps> = ({
   const [newUserEmail, setNewUserEmail] = useState('');
   const [newUserPassword, setNewUserPassword] = useState('');
   const [newUserRole, setNewUserRole] = useState<'MANAGER' | 'EXECUTOR'>('EXECUTOR');
+  const [isAddingUser, setIsAddingUser] = useState(false);
 
   // New Group State
   const [newGroupName, setNewGroupName] = useState('');
   const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
+  const [isAddingGroup, setIsAddingGroup] = useState(false);
 
-  const handleCreateUser = (e: React.FormEvent) => {
+  const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newUserName || !newUserEmail || !newUserPassword) return;
 
-    onAddUser({
-      id: `u-${Date.now()}`,
-      name: newUserName,
-      email: newUserEmail,
-      password: newUserPassword,
-      role: newUserRole
-    });
-    setNewUserName('');
-    setNewUserEmail('');
-    setNewUserPassword('');
+    try {
+      setIsAddingUser(true);
+      await onAddUser({
+        id: `u-${Date.now()}`,
+        name: newUserName,
+        email: newUserEmail,
+        password: newUserPassword,
+        role: newUserRole
+      });
+      setNewUserName('');
+      setNewUserEmail('');
+      setNewUserPassword('');
+    } catch (error) {
+      alert('新增人員失敗');
+      console.error(error);
+    } finally {
+      setIsAddingUser(false);
+    }
   };
 
-  const handleCreateGroup = (e: React.FormEvent) => {
+  const handleCreateGroup = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newGroupName || selectedMembers.length === 0) return;
 
-    onAddGroup({
-      id: `g-${Date.now()}`,
-      name: newGroupName,
-      memberIds: selectedMembers
-    });
-    setNewGroupName('');
-    setSelectedMembers([]);
+    try {
+      setIsAddingGroup(true);
+      await onAddGroup({
+        id: `g-${Date.now()}`,
+        name: newGroupName,
+        memberIds: selectedMembers
+      });
+      setNewGroupName('');
+      setSelectedMembers([]);
+    } catch (error) {
+      alert('新增群組失敗');
+      console.error(error);
+    } finally {
+      setIsAddingGroup(false);
+    }
   };
 
-  const handleResetPassword = (user: User) => {
+  const handleResetPassword = async (user: User) => {
     const newPass = prompt(`請為 ${user.name} 輸入新的密碼：`);
     if (newPass) {
-      onUpdateUser({ ...user, password: newPass });
-      alert('密碼已重設');
+      try {
+        await onUpdateUser({ ...user, password: newPass });
+        alert('密碼已重設');
+      } catch (error) {
+        alert('重設密碼失敗');
+      }
+    }
+  };
+
+  const handleDeleteUser = async (id: string) => {
+    try {
+      await onDeleteUser(id);
+    } catch (error) {
+      alert('刪除失敗');
+      console.error(error);
+    }
+  };
+
+  const handleDeleteGroup = async (id: string) => {
+    try {
+      await onDeleteGroup(id);
+    } catch (error) {
+      alert('刪除失敗');
+      console.error(error);
     }
   };
 
@@ -119,7 +159,13 @@ export const UserManagement: React.FC<UserManagementProps> = ({
                   <option value="MANAGER">主管 (Manager)</option>
                 </select>
               </div>
-              <button type="submit" className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition">建立人員</button>
+              <button
+                type="submit"
+                disabled={isAddingUser}
+                className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center"
+              >
+                {isAddingUser ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div> : '建立人員'}
+              </button>
             </form>
           </div>
 
@@ -153,7 +199,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
                         >
                           重設密碼
                         </button>
-                        <button onClick={() => onDeleteUser(user.id)} className="text-red-400 hover:text-red-600 transition">
+                        <button onClick={() => handleDeleteUser(user.id)} className="text-red-400 hover:text-red-600 transition">
                           <Trash2 size={16} />
                         </button>
                       </td>
@@ -192,7 +238,13 @@ export const UserManagement: React.FC<UserManagementProps> = ({
                 </div>
                 <p className="text-xs text-gray-400 mt-1">已選擇 {selectedMembers.length} 人</p>
               </div>
-              <button type="submit" className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition">建立群組</button>
+              <button
+                type="submit"
+                disabled={isAddingGroup}
+                className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center"
+              >
+                {isAddingGroup ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div> : '建立群組'}
+              </button>
             </form>
           </div>
 
@@ -215,7 +267,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({
                       })}
                     </div>
                   </div>
-                  <button onClick={() => onDeleteGroup(group.id)} className="text-red-400 hover:text-red-600 p-2">
+                  <button onClick={() => handleDeleteGroup(group.id)} className="text-red-400 hover:text-red-600 p-2">
                     <Trash2 size={18} />
                   </button>
                 </div>

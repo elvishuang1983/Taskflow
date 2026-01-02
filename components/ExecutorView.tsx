@@ -4,7 +4,7 @@ import { Send, Upload, Clock, AlertTriangle, ArrowLeft, FileText, Image as Image
 
 interface ExecutorViewProps {
   task: Task;
-  onUpdateTask: (task: Task) => void;
+  onUpdateTask: (task: Task) => Promise<void> | void;
   onBack: () => void;
 }
 
@@ -15,6 +15,7 @@ export const ExecutorView: React.FC<ExecutorViewProps> = ({ task, onUpdateTask, 
   const [comment, setComment] = useState('');
   const [fileName, setFileName] = useState<string | null>(null);
   const [fileData, setFileData] = useState<string | undefined>(undefined);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -30,7 +31,7 @@ export const ExecutorView: React.FC<ExecutorViewProps> = ({ task, onUpdateTask, 
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     const newLog: ProgressLog = {
@@ -49,14 +50,22 @@ export const ExecutorView: React.FC<ExecutorViewProps> = ({ task, onUpdateTask, 
       logs: [newLog, ...task.logs]
     };
 
-    onUpdateTask(updatedTask);
+    try {
+      setIsSubmitting(true);
+      await onUpdateTask(updatedTask);
 
-    // Reset form
-    setHoursSpent(0);
-    setComment('');
-    setFileName(null);
-    setFileData(undefined);
-    alert('進度回報成功！');
+      // Reset form
+      setHoursSpent(0);
+      setComment('');
+      setFileName(null);
+      setFileData(undefined);
+      alert('進度回報成功！');
+    } catch (error) {
+      alert('進度回報失敗，請重試。');
+      console.error(error);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   /* Logic Improvements for "Foolproof" reporting */
@@ -185,9 +194,17 @@ export const ExecutorView: React.FC<ExecutorViewProps> = ({ task, onUpdateTask, 
 
             <button
               type="submit"
-              className="w-full py-3 rounded-lg bg-blue-600 text-white font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 transition"
+              disabled={isSubmitting}
+              className="w-full py-3 rounded-lg bg-blue-600 text-white font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 transition disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center"
             >
-              提交回報
+              {isSubmitting ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  處理中...
+                </>
+              ) : (
+                '提交回報'
+              )}
             </button>
           </form>
         </div>

@@ -1,100 +1,95 @@
-import { Task, User, Group, TaskStatus, ReminderFrequency } from '../types';
+import { Task, User, Group, TaskStatus, ReportingFrequency } from '../types';
+import { db } from './firebaseConfig';
+import {
+  collection, doc, setDoc, deleteDoc, updateDoc,
+  onSnapshot, query, where, getDocs, orderBy
+} from 'firebase/firestore';
 
-// Changed keys to ensure a fresh start for the "Real" version
-const TASKS_KEY = 'taskflow_tasks_prod';
-const USERS_KEY = 'taskflow_users_prod';
-const GROUPS_KEY = 'taskflow_groups_prod';
-const CONFIG_KEY = 'taskflow_config_prod';
+// Collection References
+const USERS_COL = 'users';
+const GROUPS_COL = 'groups';
+const TASKS_COL = 'tasks';
+const CONFIG_COL = 'system_config';
 
 export interface SystemConfig {
-  emailJsServiceId: string; // Kept for backward compatibility if needed later
+  emailJsServiceId: string;
   emailJsTemplateId: string;
   emailJsPublicKey: string;
-  systemBaseUrl?: string;   // New: Persist the deployed URL (e.g., Vercel or Google Sites)
+  systemBaseUrl?: string;
 }
 
-// Helpers
-const getStorage = <T>(key: string, initial: T): T => {
-  const stored = localStorage.getItem(key);
-  if (stored) return JSON.parse(stored);
-  // In production, we default to the empty initial state provided
-  localStorage.setItem(key, JSON.stringify(initial));
-  return initial;
-};
-
-const setStorage = <T>(key: string, data: T) => {
-  localStorage.setItem(key, JSON.stringify(data));
-};
-
 export const dataService = {
-  // Config
-  getConfig: (): SystemConfig => getStorage(CONFIG_KEY, {
-    emailJsServiceId: '',
-    emailJsTemplateId: '',
-    emailJsPublicKey: '',
-    systemBaseUrl: ''
-  }),
-  saveConfig: (config: SystemConfig) => setStorage(CONFIG_KEY, config),
+  // --- REAL-TIME SUBSCRIPTIONS ---
 
-  // Users - Start EMPTY
-  getUsers: (): User[] => getStorage(USERS_KEY, []),
-  addUser: (user: User) => {
-    const users = getStorage<User[]>(USERS_KEY, []);
-    setStorage(USERS_KEY, [...users, user]);
-  },
-  updateUser: (updatedUser: User) => {
-    const users = getStorage<User[]>(USERS_KEY, []);
-    const newUsers = users.map(u => u.id === updatedUser.id ? updatedUser : u);
-    setStorage(USERS_KEY, newUsers);
-  },
-  deleteUser: (id: string) => {
-    const users = getStorage<User[]>(USERS_KEY, []);
-    setStorage(USERS_KEY, users.filter(u => u.id !== id));
-  },
-
-  // Groups - Start EMPTY
-  getGroups: (): Group[] => getStorage(GROUPS_KEY, []),
-  addGroup: (group: Group) => {
-    const groups = getStorage<Group[]>(GROUPS_KEY, []);
-    setStorage(GROUPS_KEY, [...groups, group]);
-  },
-  deleteGroup: (id: string) => {
-    const groups = getStorage<Group[]>(GROUPS_KEY, []);
-    setStorage(GROUPS_KEY, groups.filter(g => g.id !== id));
-  },
-
-  // Tasks - Start EMPTY
-  getTasks: (): Task[] => getStorage(TASKS_KEY, []),
-  addTask: (task: Task) => {
-    const tasks = getStorage<Task[]>(TASKS_KEY, []);
-    setStorage(TASKS_KEY, [task, ...tasks]);
-  },
-  updateTask: (updatedTask: Task) => {
-    const tasks = getStorage<Task[]>(TASKS_KEY, []);
-    const newTasks = tasks.map(t => t.id === updatedTask.id ? updatedTask : t);
-    setStorage(TASKS_KEY, newTasks);
-  },
-  getTaskById: (id: string): Task | undefined => {
-    return getStorage<Task[]>(TASKS_KEY, []).find(t => t.id === id);
-  },
-
-  // Helper to find tasks relevant to a specific user (assigned directly OR to their group)
-  getTasksForUser: (userId: string): Task[] => {
-    const allTasks = getStorage<Task[]>(TASKS_KEY, []);
-    const allGroups = getStorage<Group[]>(GROUPS_KEY, []);
-
-    // Find groups this user belongs to
-    const userGroupIds = allGroups.filter(g => g.memberIds.includes(userId)).map(g => g.id);
-
-    return allTasks.filter(task => {
-      if (task.assigneeType === 'USER' && task.assigneeId === userId) return true;
-      if (task.assigneeType === 'GROUP' && userGroupIds.includes(task.assigneeId)) return true;
-      if (task.assigneeType === 'GROUP' && userGroupIds.includes(task.assigneeId)) return true;
-      return false;
+  subscribeToUsers: (callback: (users: User[]) => void) => {
+    const q = query(collection(db, USERS_COL));
+    return onSnapshot(q, (snapshot) => {
+      const users = snapshot.docs.map(doc => doc.data() as User);
+      callback(users);
     });
   },
 
-  // Helper: Check for missed reports
+  subscribeToGroups: (callback: (groups: Group[]) => void) => {
+    const q = query(collection(db, GROUPS_COL));
+    return onSnapshot(q, (snapshot) => {
+      const groups = snapshot.docs.map(doc => doc.data() as Group);
+      callback(groups);
+    });
+  },
+
+  subscribeToTasks: (callback: (tasks: Task[]) => void) => {
+    const q = query(collection(db, TASKS_COL), orderBy('dueDate', 'asc')); // Default sorting
+    return onSnapshot(q, (snapshot) => {
+      const tasks = snapshot.docs.map(doc => doc.data() as Task);
+      callback(tasks);
+    });
+  },
+
+  subscribeToConfig: (callback: (config: SystemConfig) => void) => {
+    return onSnapshot(doc(db, CONFIG_COL, 'main'), (doc) => {
+      if (doc.exists()) {
+        callback(doc.data() as SystemConfig);
+      } else {
+        callback({
+          emailJsServiceId: '',
+          emailJsTemplateId: '',
+          emailJsPublicKey: '',
+          systemBaseUrl: ''
+        });
+      }
+    });
+  },
+
+  // --- ASYNC ACTIONS ---
+
+  // Users
+  addUser: async (user: User) => {
+    await setDoc(doc(db, USERS_COL, user.id), user);
+  },
+  updateUser: async (user: User) => {
+    await setDoc(doc(db, USERS_COL, user.id), user, { merge: true });
+  },
+  deleteUser: async (id: string) => {
+    await deleteDoc(doc(db, USERS_COL, id));
+  },
+
+  // Groups
+  addGroup: async (group: Group) => {
+    await setDoc(doc(db, GROUPS_COL, group.id), group);
+  },
+  deleteGroup: async (id: string) => {
+    await deleteDoc(doc(db, GROUPS_COL, id));
+  },
+
+  // Tasks
+  addTask: async (task: Task) => {
+    await setDoc(doc(db, TASKS_COL, task.id), task);
+  },
+  updateTask: async (task: Task) => {
+    await setDoc(doc(db, TASKS_COL, task.id), task, { merge: true });
+  },
+
+  // Helpers (Logic mostly remains, but checking missed reports is pure logic)
   checkMissedReports: (task: Task): boolean => {
     if (task.status === TaskStatus.COMPLETED || !task.reportingFrequency || task.reportingFrequency === 'NONE') return false;
 
@@ -112,5 +107,16 @@ export const dataService = {
       case 'MONTHLY': return diff > 30 * MS_PER_DAY;
       default: return false;
     }
+  },
+
+  // One-off fetch (if needed, though we prefer subscriptions)
+  getTaskById: async (id: string): Promise<Task | undefined> => {
+    // Implementation if really needed, but usually we filter from subscribed list app-side
+    // blocking for now to avoid refactoring EVERYTHING at once
+    return undefined;
+  },
+
+  saveConfig: async (config: SystemConfig) => {
+    await setDoc(doc(db, CONFIG_COL, 'main'), config);
   }
 };
