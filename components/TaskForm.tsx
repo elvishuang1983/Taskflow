@@ -143,8 +143,11 @@ export const TaskForm: React.FC<TaskFormProps> = ({ users, groups, onSubmit, onC
       setCreatedTask(newTask);
 
       // 2. Try Auto-Send Email
-      // We do this concurrently or after? After is safer for "success" modal.
-      await sendAutoEmail(newTask);
+      if (config.notificationPreference !== 'OUTLOOK') {
+        await sendAutoEmail(newTask);
+      } else {
+        setEmailStatus('IDLE');
+      }
 
       setShowSuccess(true);
     } catch (error) {
