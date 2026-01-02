@@ -5,6 +5,15 @@ export enum TaskStatus {
   COMPLETED = 'COMPLETED'
 }
 
+export enum ReportingFrequency {
+  NONE = 'NONE',
+  HOURLY = 'HOURLY',
+  DAILY = 'DAILY',
+  WEEKLY = 'WEEKLY',
+  MONTHLY = 'MONTHLY'
+}
+
+// Kept for backward compatibility or different usage
 export enum ReminderFrequency {
   HOURLY = 'HOURLY',
   DAILY = 'DAILY',
@@ -17,6 +26,7 @@ export interface User {
   name: string;
   email: string;
   role: 'MANAGER' | 'EXECUTOR';
+  password?: string; // Optional for backward compatibility, but required for new flow
   avatar?: string;
 }
 
@@ -44,7 +54,11 @@ export interface Task {
   startDate: number;
   dueDate: number;
   estimatedDuration: number; // in hours
-  reminderFrequency: ReminderFrequency;
+  reminderFrequency: ReminderFrequency; // Deprecated, replaced by reportingFrequency
+  reportingFrequency: ReportingFrequency; // New field for reporting requirement
+  lastReportedAt?: number; // Timestamp of last report
+  missedReportCount?: number; // Counter for missed reports
+  missedReportHistory?: { date: number; count: number }[]; // Trend data
   status: TaskStatus;
   progress: number; // 0 to 100
   logs: ProgressLog[];

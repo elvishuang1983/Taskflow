@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { User, Group, Task, TaskStatus, ReminderFrequency } from '../types';
+import { User, Group, Task, TaskStatus, ReportingFrequency } from '../types';
 import { Calendar, Clock, User as UserIcon, Users, Mail, CheckCircle, Copy, Link as LinkIcon, Save } from 'lucide-react';
 import { dataService } from '../services/dataService';
 
@@ -17,7 +17,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({ users, groups, onSubmit, onC
   const [assigneeId, setAssigneeId] = useState<string>(users[0]?.id || '');
   const [dueDate, setDueDate] = useState('');
   const [duration, setDuration] = useState(8);
-  const [reminder, setReminder] = useState<ReminderFrequency>(ReminderFrequency.DAILY);
+  const [reminder, setReminder] = useState<ReportingFrequency>(ReportingFrequency.DAILY);
 
   // Success Modal State
   const [showSuccess, setShowSuccess] = useState(false);
@@ -65,7 +65,8 @@ export const TaskForm: React.FC<TaskFormProps> = ({ users, groups, onSubmit, onC
       startDate: Date.now(),
       dueDate: new Date(dueDate).getTime(),
       estimatedDuration: Number(duration),
-      reminderFrequency: reminder,
+      reminderFrequency: reminder as any, // Deprecated, cast to satisfy type
+      reportingFrequency: reminder, // New field
       status: TaskStatus.PENDING,
       progress: 0,
       logs: []
@@ -291,6 +292,23 @@ TaskFlow Pro 系統通知`;
                 onChange={e => setDuration(parseInt(e.target.value))}
               />
             </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center">
+                <Clock size={16} className="mr-2" /> 回報頻率要求
+              </label>
+              <select
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                value={reminder}
+                onChange={e => setReminder(e.target.value as ReportingFrequency)}
+              >
+                <option value="NONE">不強制</option>
+                <option value="HOURLY">每小時</option>
+                <option value="DAILY">每天</option>
+                <option value="WEEKLY">每週</option>
+                <option value="MONTHLY">每月</option>
+              </select>
+            </div>
           </div>
         </div>
 
@@ -309,7 +327,7 @@ TaskFlow Pro 系統通知`;
             分配任務
           </button>
         </div>
-      </form>
-    </div>
+      </form >
+    </div >
   );
 };
