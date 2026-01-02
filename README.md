@@ -76,6 +76,8 @@ npm run dev
 | `npm run lint` | 執行 ESLint 程式碼檢查 |
 | `npm run lint:fix` | 自動修復 ESLint 問題 |
 | `npm run format` | 使用 Prettier 格式化程式碼 |
+| `npm run deploy` | 部署到 GitHub Pages |
+
 
 ## 📁 專案結構
 
@@ -116,7 +118,57 @@ TaskFlow/
 
 嚴格的 TypeScript 配置，提供完整的類型安全。
 
-## 🌐 部署
+
+## 🌐 部署到 GitHub Pages
+
+TaskFlow Pro 已配置好 GitHub Pages 部署，提供兩種部署方式：
+
+### 🤖 方式一：自動部署（推薦）
+
+每次推送到 `main` 分支時，GitHub Actions 會自動建置和部署。
+
+**首次設定：**
+
+1. 前往 GitHub repository：https://github.com/elvishuang1983/Taskflow
+2. 點擊 **Settings** > **Pages**
+3. 在 **Source** 選擇：**GitHub Actions**
+4. 儲存設定
+
+**部署：**
+
+```bash
+git add .
+git commit -m "Your commit message"
+git push origin main
+```
+
+部署完成後訪問：**https://elvishuang1983.github.io/Taskflow**
+
+### 🛠️ 方式二：手動部署
+
+使用 npm 指令手動部署：
+
+```bash
+# 建置並部署
+npm run deploy
+```
+
+**首次手動部署需要設定：**
+
+1. 前往 **Settings** > **Pages**
+2. **Source** 選擇：**Deploy from a branch**
+3. 選擇分支：**gh-pages** / **root**
+4. 儲存後等待部署完成
+
+### 📋 部署檢查清單
+
+- [ ] GitHub Pages 已啟用
+- [ ] 推送程式碼到 main 分支
+- [ ] 等待 GitHub Actions 完成（約 2-3 分鐘）
+- [ ] 訪問 https://elvishuang1983.github.io/Taskflow
+- [ ] 驗證所有功能正常運作
+
+> 💡 **提示**：詳細的部署指南請參考專案中的 `github_pages_deployment.md`
 
 ### 建置生產版本
 
@@ -132,17 +184,19 @@ npm run build
 npm run preview
 ```
 
+
 ## 📝 操作記錄
 
-### 2026-01-02 - 專案初始配置
+### 2026-01-02 - 專案初始配置與部署設定
 
 **執行項目：**
 
 1. ✅ **package.json 配置**
    - 新增 TypeScript 類型定義 (@types/react, @types/react-dom)
    - 整合開發工具 (ESLint, Prettier)
-   - 擴充開發指令 (lint, format, type-check)
+   - 擴充開發指令 (lint, format, type-check, deploy)
    - 更新版本號至 1.0.0
+   - 新增 gh-pages 部署套件
 
 2. ✅ **.gitignore 優化**
    - 新增環境變數檔案排除 (.env, .env.local)
@@ -156,6 +210,13 @@ npm run preview
    - 所有可用指令的說明
    - 專案結構圖
    - 開發工具配置說明
+   - GitHub Pages 部署指南
+
+4. ✅ **GitHub Pages 部署配置**
+   - 配置 vite.config.ts 的 base path
+   - 建立 GitHub Actions 自動部署工作流程
+   - 新增手動部署指令
+   - 建立完整部署文檔
 
 **配置人員**: Senior React Engineer  
 **配置日期**: 2026-01-02

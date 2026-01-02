@@ -4,6 +4,7 @@
   "version": "1.0.0",
   "type": "module",
   "description": "TaskFlow Pro - 任務分配與追蹤系統",
+  "homepage": "https://elvishuang1983.github.io/Taskflow",
   "scripts": {
     "dev": "vite",
     "dev:host": "vite --host",
@@ -12,7 +13,9 @@
     "type-check": "tsc --noEmit",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "lint:fix": "eslint . --ext ts,tsx --fix",
-    "format": "prettier --write \"**/*.{ts,tsx,json,css,md}\""
+    "format": "prettier --write \"**/*.{ts,tsx,json,css,md}\"",
+    "predeploy": "npm run build",
+    "deploy": "gh-pages -d dist"
   },
   "dependencies": {
     "react": "^19.2.3",
@@ -33,6 +36,7 @@
     "eslint-plugin-react-refresh": "^0.4.16",
     "@typescript-eslint/eslint-plugin": "^8.18.2",
     "@typescript-eslint/parser": "^8.18.2",
-    "prettier": "^3.4.2"
+    "prettier": "^3.4.2",
+    "gh-pages": "^6.2.0"
   }
 }
