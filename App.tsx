@@ -1,25 +1,16 @@
+import React, { useState, useEffect } from 'react';
 import { LayoutDashboard, PlusCircle, Users, LogOut, Briefcase, UserCircle2, ShieldCheck, ArrowRight, Settings } from 'lucide-react';
+import { Dashboard } from './components/Dashboard';
+import { TaskForm } from './components/TaskForm';
+import { ExecutorView } from './components/ExecutorView';
+import { ExecutorTaskList } from './components/ExecutorTaskList';
+import { UserManagement } from './components/UserManagement';
 import { SystemSettings } from './components/SystemSettings';
+import { dataService } from './services/dataService';
+import { Task, User, Group } from './types';
 
-// ... existing imports
-
+// App Modes
 type ViewMode = 'DASHBOARD' | 'CREATE_TASK' | 'USER_MANAGEMENT' | 'TASK_DETAIL' | 'SYSTEM_SETTINGS';
-
-// ... existing code ...
-
-          <SidebarItem
-            icon={Users}
-            label="人員與群組"
-            active={view === 'USER_MANAGEMENT'}
-            onClick={() => setView('USER_MANAGEMENT')}
-          />
-          <SidebarItem
-             icon={Settings}
-             label="系統設定"
-             active={view === 'SYSTEM_SETTINGS'}
-             onClick={() => setView('SYSTEM_SETTINGS')}
-          />
-        </nav >
 
 // 1. Setup Screen (For first time use / empty system)
 const SetupScreen = ({ onSetup }: { onSetup: (name: string, email: string, password: string) => void }) => {
@@ -411,6 +402,12 @@ export default function App() {
             label="人員與群組"
             active={view === 'USER_MANAGEMENT'}
             onClick={() => setView('USER_MANAGEMENT')}
+          />
+          <SidebarItem
+            icon={Settings}
+            label="系統設定"
+            active={view === 'SYSTEM_SETTINGS'}
+            onClick={() => setView('SYSTEM_SETTINGS')}
           />
         </nav>
 
