@@ -118,6 +118,18 @@ TaskFlow/
 
 嚴格的 TypeScript 配置，提供完整的類型安全。
 
+### EmailJS 郵件通知
+
+整合 EmailJS 服務發送任務通知郵件。
+
+**設定步驟：**
+1. 前往系統設定頁面配置 EmailJS 金鑰
+2. 使用提供的 `emailjs-template.html` 模板避免中文亂碼
+3. 詳細設定請參考 `EMAIL_FIX_GUIDE.md`
+
+> 💡 **重要**：如果郵件出現亂碼，請參考 `EMAIL_FIX_GUIDE.md` 修復指南
+
+
 
 ## 🌐 部署到 GitHub Pages
 

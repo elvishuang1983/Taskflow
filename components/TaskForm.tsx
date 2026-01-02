@@ -22,7 +22,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({ users, groups, onSubmit, onC
   // Success Modal State
   const [showSuccess, setShowSuccess] = useState(false);
   const [createdTask, setCreatedTask] = useState<Task | null>(null);
-  
+
   // URL State
   const [baseUrl, setBaseUrl] = useState('');
 
@@ -30,14 +30,14 @@ export const TaskForm: React.FC<TaskFormProps> = ({ users, groups, onSubmit, onC
   useEffect(() => {
     const config = dataService.getConfig();
     if (config.systemBaseUrl) {
-        setBaseUrl(config.systemBaseUrl);
+      setBaseUrl(config.systemBaseUrl);
     } else {
-        // Smart Detection: Get current URL without query params
-        // This supports GitHub Pages which usually lives in a subdirectory (e.g. /my-repo/)
-        const currentUrl = window.location.href.split('?')[0];
-        // Remove trailing slash for consistency
-        const cleanUrl = currentUrl.endsWith('/') ? currentUrl.slice(0, -1) : currentUrl;
-        setBaseUrl(cleanUrl);
+      // Smart Detection: Get current URL without query params
+      // This supports GitHub Pages which usually lives in a subdirectory (e.g. /my-repo/)
+      const currentUrl = window.location.href.split('?')[0];
+      // Remove trailing slash for consistency
+      const cleanUrl = currentUrl.endsWith('/') ? currentUrl.slice(0, -1) : currentUrl;
+      setBaseUrl(cleanUrl);
     }
   }, []);
 
@@ -46,8 +46,8 @@ export const TaskForm: React.FC<TaskFormProps> = ({ users, groups, onSubmit, onC
     // Auto-save the new URL preference
     const config = dataService.getConfig();
     dataService.saveConfig({
-        ...config,
-        systemBaseUrl: newUrl
+      ...config,
+      systemBaseUrl: newUrl
     });
   };
 
@@ -83,29 +83,41 @@ export const TaskForm: React.FC<TaskFormProps> = ({ users, groups, onSubmit, onC
 
     // Handle trailing slash just in case user input has it
     const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
-    
+
     // Simply append the query param. 
     // We trust baseUrl is the full entry point (e.g., https://user.github.io/repo)
     const taskLink = `${cleanBaseUrl}?taskId=${createdTask.id}`;
-    
+
     let emailTo = '';
     let assigneeName = '';
 
     if (createdTask.assigneeType === 'USER') {
-        const user = users.find(u => u.id === createdTask.assigneeId);
-        emailTo = user?.email || '';
-        assigneeName = user?.name || '';
+      const user = users.find(u => u.id === createdTask.assigneeId);
+      emailTo = user?.email || '';
+      assigneeName = user?.name || '';
     } else {
-        const group = groups.find(g => g.id === createdTask.assigneeId);
-        assigneeName = group?.name || '';
-        const memberEmails = group?.memberIds.map(mid => users.find(u => u.id === mid)?.email).filter(Boolean);
-        emailTo = memberEmails?.join(',') || '';
+      const group = groups.find(g => g.id === createdTask.assigneeId);
+      assigneeName = group?.name || '';
+      const memberEmails = group?.memberIds.map(mid => users.find(u => u.id === mid)?.email).filter(Boolean);
+      emailTo = memberEmails?.join(',') || '';
     }
 
-    const subject = encodeURIComponent(`[任務指派] ${createdTask.title}`);
-    const body = encodeURIComponent(`你好，\n\n您已被指派一項新任務，請查收。\n\n任務名稱: ${createdTask.title}\n截止日期: ${new Date(createdTask.dueDate).toLocaleDateString()}\n\n請點擊以下連結回報進度:\n${taskLink}\n\nTaskFlow Pro 系統通知`);
-    
-    const mailto = `mailto:${emailTo}?subject=${subject}&body=${body}`;
+    // Fix: Improved encoding for Outlook compatibility with Chinese characters
+    const subject = `[TaskFlow] ${createdTask.title}`;
+    const bodyText = `您好，
+
+您已被指派一項新任務：
+
+任務名稱：${createdTask.title}
+截止日期：${new Date(createdTask.dueDate).toLocaleDateString('zh-TW')}
+
+請點擊以下連結查看任務詳情：
+${taskLink}
+
+---
+TaskFlow Pro 系統通知`;
+
+    const mailto = `mailto:${emailTo}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(bodyText)}`;
 
     return { link: taskLink, mailto, assigneeName };
   };
@@ -121,7 +133,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({ users, groups, onSubmit, onC
 
   const closeSuccessModal = () => {
     setShowSuccess(false);
-    onCancel(); 
+    onCancel();
   };
 
   if (showSuccess && createdTask) {
@@ -138,39 +150,39 @@ export const TaskForm: React.FC<TaskFormProps> = ({ users, groups, onSubmit, onC
 
           {/* URL Correction Field */}
           <div className="bg-orange-50 p-4 rounded-lg mb-6 text-left border border-orange-100 shadow-inner">
-             <label className="block text-xs font-bold text-orange-800 mb-2 flex items-center justify-between">
-                <span className="flex items-center"><LinkIcon size={12} className="mr-1"/> 系統發布網址 (Base URL)</span>
-                <span className="text-[10px] bg-orange-200 px-2 py-0.5 rounded text-orange-800 flex items-center">
-                    <Save size={8} className="mr-1"/> 自動儲存
-                </span>
-             </label>
-             <input 
-                type="text" 
-                value={baseUrl}
-                onChange={(e) => handleBaseUrlChange(e.target.value)}
-                className="w-full text-sm p-2 border border-orange-200 rounded text-gray-600 focus:outline-none focus:border-orange-400 bg-white"
-                placeholder="例如: https://username.github.io/taskflow"
-             />
-             <div className="mt-2 text-[11px] text-orange-700 leading-relaxed">
-                <strong>網址設定說明：</strong>
-                <ul className="list-disc pl-4 mt-1 space-y-1">
-                    <li>如果您部署到 <strong>GitHub Pages</strong>，系統通常會自動偵測到正確網址。</li>
-                    <li>若自動偵測不正確，請手動輸入您的正式網址（包含專案名稱）。</li>
-                    <li>目前設定的連結預覽：<br/><code className="bg-orange-100 px-1 rounded text-orange-900">{notificationData.link}</code></li>
-                </ul>
-             </div>
+            <label className="block text-xs font-bold text-orange-800 mb-2 flex items-center justify-between">
+              <span className="flex items-center"><LinkIcon size={12} className="mr-1" /> 系統發布網址 (Base URL)</span>
+              <span className="text-[10px] bg-orange-200 px-2 py-0.5 rounded text-orange-800 flex items-center">
+                <Save size={8} className="mr-1" /> 自動儲存
+              </span>
+            </label>
+            <input
+              type="text"
+              value={baseUrl}
+              onChange={(e) => handleBaseUrlChange(e.target.value)}
+              className="w-full text-sm p-2 border border-orange-200 rounded text-gray-600 focus:outline-none focus:border-orange-400 bg-white"
+              placeholder="例如: https://username.github.io/taskflow"
+            />
+            <div className="mt-2 text-[11px] text-orange-700 leading-relaxed">
+              <strong>網址設定說明：</strong>
+              <ul className="list-disc pl-4 mt-1 space-y-1">
+                <li>如果您部署到 <strong>GitHub Pages</strong>，系統通常會自動偵測到正確網址。</li>
+                <li>若自動偵測不正確，請手動輸入您的正式網址（包含專案名稱）。</li>
+                <li>目前設定的連結預覽：<br /><code className="bg-orange-100 px-1 rounded text-orange-900">{notificationData.link}</code></li>
+              </ul>
+            </div>
           </div>
 
           <div className="space-y-3">
-            <a 
+            <a
               href={notificationData.mailto}
               className="flex items-center justify-center w-full py-3 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 transition shadow-lg shadow-blue-100"
             >
               <Mail size={18} className="mr-2" />
               開啟郵件軟體發送通知
             </a>
-            
-            <button 
+
+            <button
               onClick={copyToClipboard}
               className="flex items-center justify-center w-full py-3 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition"
             >
@@ -179,7 +191,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({ users, groups, onSubmit, onC
             </button>
           </div>
 
-          <button 
+          <button
             onClick={closeSuccessModal}
             className="mt-6 text-gray-400 hover:text-gray-600 text-sm"
           >
@@ -193,7 +205,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({ users, groups, onSubmit, onC
   return (
     <div className="bg-white p-6 rounded-xl shadow-lg border border-gray-100 max-w-2xl mx-auto">
       <h2 className="text-2xl font-bold text-gray-800 mb-6">建立新任務</h2>
-      
+
       <form onSubmit={handleSubmit} className="space-y-6">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">任務名稱</label>
@@ -225,23 +237,21 @@ export const TaskForm: React.FC<TaskFormProps> = ({ users, groups, onSubmit, onC
               <button
                 type="button"
                 onClick={() => setAssigneeType('USER')}
-                className={`flex-1 flex items-center justify-center py-2 rounded-md text-sm font-medium transition ${
-                  assigneeType === 'USER' ? 'bg-blue-600 text-white shadow' : 'bg-white text-gray-600 border'
-                }`}
+                className={`flex-1 flex items-center justify-center py-2 rounded-md text-sm font-medium transition ${assigneeType === 'USER' ? 'bg-blue-600 text-white shadow' : 'bg-white text-gray-600 border'
+                  }`}
               >
                 <UserIcon size={16} className="mr-2" /> 個人
               </button>
               <button
                 type="button"
                 onClick={() => setAssigneeType('GROUP')}
-                className={`flex-1 flex items-center justify-center py-2 rounded-md text-sm font-medium transition ${
-                  assigneeType === 'GROUP' ? 'bg-blue-600 text-white shadow' : 'bg-white text-gray-600 border'
-                }`}
+                className={`flex-1 flex items-center justify-center py-2 rounded-md text-sm font-medium transition ${assigneeType === 'GROUP' ? 'bg-blue-600 text-white shadow' : 'bg-white text-gray-600 border'
+                  }`}
               >
                 <Users size={16} className="mr-2" /> 群組
               </button>
             </div>
-            
+
             <select
               value={assigneeId}
               onChange={e => setAssigneeId(e.target.value)}
@@ -259,7 +269,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({ users, groups, onSubmit, onC
           <div className="bg-gray-50 p-4 rounded-lg space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center">
-                <Calendar size={16} className="mr-2"/> 截止日期
+                <Calendar size={16} className="mr-2" /> 截止日期
               </label>
               <input
                 type="date"
@@ -271,7 +281,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({ users, groups, onSubmit, onC
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center">
-                <Clock size={16} className="mr-2"/> 預估工時 (小時)
+                <Clock size={16} className="mr-2" /> 預估工時 (小時)
               </label>
               <input
                 type="number"
