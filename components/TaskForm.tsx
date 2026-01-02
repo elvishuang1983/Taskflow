@@ -208,7 +208,8 @@ TaskFlow Pro 系統通知`;
           {/* Auto Email Status Feedback */}
           {emailStatus === 'SUCCESS' && (
             <p className="text-sm text-green-600 font-bold mb-2 bg-green-50 p-2 rounded">
-              ✓ 系統已自動發送通知郵件給 {notificationData.assigneeName}
+              ✓ 已透過系統設定的郵件服務 (EmailJS) 發送通知。<br />
+              <span className="text-xs font-normal text-gray-500 block mt-1">(注意：此郵件不會出現在您的個人寄件備份中，除非您在 EmailJS 綁定該帳號)</span>
             </p>
           )}
           {emailStatus === 'ERROR' && (
