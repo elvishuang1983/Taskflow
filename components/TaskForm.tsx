@@ -217,7 +217,12 @@ TaskFlow Pro 系統通知`;
               ⚠ 自動發信失敗 (可能是超過每月免費額度)，請使用下方按鈕手動通知
             </p>
           )}
-          {emailStatus === 'IDLE' && !config.emailJsServiceId && (
+          {emailStatus === 'IDLE' && config.notificationPreference === 'OUTLOOK' && (
+            <p className="text-sm text-blue-600 mb-2 bg-blue-50 p-2 rounded">
+              ℹ 您已設定使用外部 Outlook 發送通知，請點擊下方按鈕。
+            </p>
+          )}
+          {emailStatus === 'IDLE' && !config.emailJsServiceId && config.notificationPreference !== 'OUTLOOK' && (
             <p className="text-xs text-gray-400 mb-2">
               (未設定自動發信，請手動通知)
             </p>

@@ -92,6 +92,40 @@ export const SystemSettings: React.FC = () => {
                 <div className="bg-white p-8 rounded-xl shadow-sm border border-gray-100">
                     <h3 className="font-bold text-lg mb-4 text-gray-800">EmailJS 金鑰設定</h3>
                     <form onSubmit={handleSave} className="space-y-6">
+                        {/* Notification Mode Selector */}
+                        <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                            <label className="block text-sm font-bold text-gray-700 mb-3">預設通知方式</label>
+                            <div className="flex space-x-4">
+                                <label className={`flex-1 cursor-pointer border rounded-lg p-3 flex items-center justify-center transition
+                                    ${config.notificationPreference !== 'OUTLOOK' ? 'bg-blue-50 border-blue-500 text-blue-700' : 'bg-white border-gray-300 text-gray-600'}`}>
+                                    <input
+                                        type="radio"
+                                        name="notifMode"
+                                        className="hidden"
+                                        checked={config.notificationPreference !== 'OUTLOOK'}
+                                        onChange={() => setConfig({ ...config, notificationPreference: 'EMAILJS' })}
+                                    />
+                                    <div className="flex items-center">
+                                        <Mail size={18} className="mr-2" />
+                                        <span className="font-bold">EmailJS 自動寄信</span>
+                                    </div>
+                                </label>
+                                <label className={`flex-1 cursor-pointer border rounded-lg p-3 flex items-center justify-center transition
+                                    ${config.notificationPreference === 'OUTLOOK' ? 'bg-blue-50 border-blue-500 text-blue-700' : 'bg-white border-gray-300 text-gray-600'}`}>
+                                    <input
+                                        type="radio"
+                                        name="notifMode"
+                                        className="hidden"
+                                        checked={config.notificationPreference === 'OUTLOOK'}
+                                        onChange={() => setConfig({ ...config, notificationPreference: 'OUTLOOK' })}
+                                    />
+                                    <div className="flex items-center">
+                                        <ExternalLink size={18} className="mr-2" />
+                                        <span className="font-bold">Outlook 手動開啟</span>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Service ID (Gmail)</label>
                             <input

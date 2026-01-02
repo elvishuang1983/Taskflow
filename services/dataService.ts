@@ -16,6 +16,7 @@ export interface SystemConfig {
   emailJsTemplateId: string;
   emailJsPublicKey: string;
   systemBaseUrl?: string;
+  notificationPreference?: 'EMAILJS' | 'OUTLOOK';
 }
 
 export const dataService = {
