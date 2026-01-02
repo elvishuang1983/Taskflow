@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
-import { Task, TaskStatus, ProgressLog } from '../types';
-import { Send, Upload, Clock, AlertTriangle, ArrowLeft, FileText, Image as ImageIcon } from 'lucide-react';
+import { Task, TaskStatus, ProgressLog, User } from '../types';
+import { Send, Upload, Clock, AlertTriangle, ArrowLeft, FileText, Image as ImageIcon, MessageSquare, Save } from 'lucide-react';
 
 interface ExecutorViewProps {
   task: Task;
+  currentUser: User;
   onUpdateTask: (task: Task) => Promise<void> | void;
   onBack: () => void;
 }
 
-export const ExecutorView: React.FC<ExecutorViewProps> = ({ task, onUpdateTask, onBack }) => {
+export const ExecutorView: React.FC<ExecutorViewProps> = ({ task, currentUser, onUpdateTask, onBack }) => {
   const [progress, setProgress] = useState(task.progress);
   const [status, setStatus] = useState<TaskStatus>(task.status);
   const [hoursSpent, setHoursSpent] = useState(0);
@@ -16,6 +17,10 @@ export const ExecutorView: React.FC<ExecutorViewProps> = ({ task, onUpdateTask, 
   const [fileName, setFileName] = useState<string | null>(null);
   const [fileData, setFileData] = useState<string | undefined>(undefined);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Manager Reply State
+  const [replyingLogId, setReplyingLogId] = useState<string | null>(null);
+  const [replyText, setReplyText] = useState('');
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -73,6 +78,27 @@ export const ExecutorView: React.FC<ExecutorViewProps> = ({ task, onUpdateTask, 
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleReplySubmit = async (logId: string) => {
+    if (!replyText.trim()) return;
+
+    const updatedLogs = task.logs.map(log => {
+      if (log.id === logId) {
+        return {
+          ...log,
+          managerReply: replyText,
+          managerReplyAt: Date.now()
+        };
+      }
+      return log;
+    });
+
+    const updatedTask = { ...task, logs: updatedLogs };
+    await onUpdateTask(updatedTask);
+
+    setReplyingLogId(null);
+    setReplyText('');
   };
 
   /* Logic Improvements for "Foolproof" reporting */
@@ -216,7 +242,7 @@ export const ExecutorView: React.FC<ExecutorViewProps> = ({ task, onUpdateTask, 
           </form>
         </div>
 
-        {/* History Log with File Preview */}
+        {/* History Log with File Preview and Manager Reply */}
         <div className="md:col-span-1 space-y-4">
           <h3 className="text-lg font-bold text-gray-800">歷史紀錄</h3>
           <div className="space-y-4 max-h-[800px] overflow-y-auto pr-2">
@@ -240,7 +266,54 @@ export const ExecutorView: React.FC<ExecutorViewProps> = ({ task, onUpdateTask, 
                         <img src={log.attachmentData} alt="attachment" className="w-full h-auto object-cover max-h-32" />
                       </div>
                     )}
-                    {/* For non-images or if data is missing, we could add a download link simulation if needed, but display is sufficient for now */}
+                  </div>
+                )}
+
+                {/* Manager Reply Display */}
+                {log.managerReply && (
+                  <div className="mt-3 bg-blue-50 p-3 rounded-lg border border-blue-100">
+                    <div className="flex items-center text-xs text-blue-600 font-bold mb-1">
+                      <MessageSquare size={12} className="mr-1" /> 主管回復
+                    </div>
+                    <p className="text-sm text-gray-700">{log.managerReply}</p>
+                  </div>
+                )}
+
+                {/* Manager Reply Action */}
+                {currentUser.role === 'MANAGER' && !log.managerReply && replyingLogId !== log.id && (
+                  <button
+                    onClick={() => setReplyingLogId(log.id)}
+                    className="mt-2 text-xs text-gray-400 hover:text-blue-600 flex items-center transition"
+                  >
+                    <MessageSquare size={12} className="mr-1" /> 回復
+                  </button>
+                )}
+
+                {/* Reply Input Form */}
+                {replyingLogId === log.id && (
+                  <div className="mt-2 animate-fade-in-up">
+                    <textarea
+                      className="w-full p-2 text-sm border border-blue-200 rounded focus:ring-2 focus:ring-blue-100 outline-none"
+                      rows={2}
+                      placeholder="輸入回復內容..."
+                      value={replyText}
+                      onChange={e => setReplyText(e.target.value)}
+                      autoFocus
+                    />
+                    <div className="flex justify-end space-x-2 mt-2">
+                      <button
+                        onClick={() => { setReplyingLogId(null); setReplyText(''); }}
+                        className="text-xs text-gray-500 hover:text-gray-700"
+                      >
+                        取消
+                      </button>
+                      <button
+                        onClick={() => handleReplySubmit(log.id)}
+                        className="bg-blue-600 text-white text-xs px-2 py-1 rounded hover:bg-blue-700 flex items-center"
+                      >
+                        <Save size={12} className="mr-1" /> 儲存
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>

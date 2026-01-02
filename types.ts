@@ -43,6 +43,8 @@ export interface ProgressLog {
   comment: string;
   attachmentName?: string;
   attachmentData?: string; // Base64 string for local storage persistence
+  managerReply?: string; // Manager's comment
+  managerReplyAt?: number; // Timestamp of the reply
 }
 
 export interface Task {

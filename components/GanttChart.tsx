@@ -14,9 +14,9 @@ export const GanttChart: React.FC<GanttChartProps> = ({ tasks, users, groups }) 
   const minDate = Math.min(...tasks.map(t => t.startDate));
   const maxDate = Math.max(...tasks.map(t => t.dueDate));
   const totalDuration = maxDate - minDate;
-  
+
   // Buffer for display
-  const timelineStart = minDate - 86400000; 
+  const timelineStart = minDate - 86400000;
   const timelineEnd = maxDate + 86400000;
   const timelineDuration = timelineEnd - timelineStart;
 
@@ -32,7 +32,7 @@ export const GanttChart: React.FC<GanttChartProps> = ({ tasks, users, groups }) 
   return (
     <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 overflow-x-auto">
       <h3 className="text-lg font-bold text-gray-800 mb-6">任務進度甘特圖</h3>
-      
+
       <div className="min-w-[800px]">
         {/* Timeline Header */}
         <div className="flex border-b pb-2 mb-4">
@@ -48,32 +48,43 @@ export const GanttChart: React.FC<GanttChartProps> = ({ tasks, users, groups }) 
           {tasks.map(task => {
             const left = ((task.startDate - timelineStart) / timelineDuration) * 100;
             const width = ((task.dueDate - task.startDate) / timelineDuration) * 100;
-            
+
             let colorClass = 'bg-blue-500';
             if (task.status === 'COMPLETED') colorClass = 'bg-green-500';
-            if (task.status === 'BLOCKED') colorClass = 'bg-red-500';
-            if (task.status === 'PENDING') colorClass = 'bg-gray-400';
+            else if (task.status === 'BLOCKED') colorClass = 'bg-red-500';
+            else if (task.progress >= 100) colorClass = 'bg-green-500'; // Auto green if 100%
+            else if (new Date().getTime() > task.dueDate) colorClass = 'bg-red-400'; // Overdue but active
+            else colorClass = 'bg-blue-600';
+
+            const todayLeft = ((Date.now() - timelineStart) / timelineDuration) * 100;
 
             return (
-              <div key={task.id} className="flex items-center group relative">
+              <div key={task.id} className="flex items-center group relative py-1">
+                {/* Today Marker Line (Global across all rows visually if we lifted it, but per row works for now) */}
+                <div className="absolute top-0 bottom-0 border-l border-dashed border-red-400 z-10 opacity-30 pointer-events-none" style={{ left: `${todayLeft}%` }}></div>
+
                 <div className="w-1/4 pr-4">
-                  <div className="font-medium text-gray-800 truncate">{task.title}</div>
+                  <div className="font-medium text-gray-800 truncate" title={task.title}>{task.title}</div>
                   <div className="text-xs text-gray-500">{getAssigneeName(task)}</div>
                 </div>
-                <div className="w-3/4 relative h-8 bg-gray-50 rounded-full overflow-hidden">
-                  <div 
+                <div className="w-3/4 relative h-8 bg-gray-50 rounded-full overflow-hidden border border-gray-100">
+                  {/* Background full width bar representing duration? No, the container is the full timeline range. */}
+
+                  {/* Estimated Duration Bar (The planned time) */}
+                  <div
                     className={`absolute h-full rounded-full ${colorClass} opacity-80 transition-all duration-500 flex items-center justify-end pr-2 text-[10px] text-white font-bold shadow-sm`}
                     style={{ left: `${left}%`, width: `${width}%` }}
                   >
-                    {task.progress}%
+                    {task.progress > 5 ? `${task.progress}%` : ''}
                   </div>
-                  {/* Today marker (optional, simulated) */}
-                  {/* <div className="absolute top-0 bottom-0 border-l border-dashed border-red-300 z-10" style={{ left: '50%' }}></div> */}
+
+                  {/* Due Date Indicator (Dashed line at the end of the bar) */}
+                  <div className="absolute top-0 bottom-0 border-r-2 border-dashed border-red-500 z-20" style={{ left: `${left + width}%` }} title="截止日期"></div>
                 </div>
-                
+
                 {/* Tooltip on hover */}
-                <div className="absolute left-1/2 bottom-full mb-2 hidden group-hover:block bg-gray-800 text-white text-xs p-2 rounded shadow-lg z-20 whitespace-nowrap">
-                  {formatDate(task.startDate)} - {formatDate(task.dueDate)}
+                <div className="absolute left-1/2 bottom-full mb-2 hidden group-hover:block bg-gray-800 text-white text-xs p-2 rounded shadow-lg z-30 whitespace-nowrap">
+                  {formatDate(task.startDate)} - {formatDate(task.dueDate)} | 進度: {task.progress}%
                 </div>
               </div>
             );

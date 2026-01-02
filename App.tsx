@@ -328,6 +328,7 @@ export default function App() {
         <div className="min-h-screen bg-gray-50 py-8 px-4">
           <ExecutorView
             task={selectedTask}
+            currentUser={currentUser}
             onUpdateTask={handleTaskUpdate}
             onBack={() => setSelectedTask(null)}
           />
@@ -476,6 +477,7 @@ export default function App() {
           {view === 'TASK_DETAIL' && selectedTask && (
             <ExecutorView
               task={selectedTask}
+              currentUser={currentUser}
               onUpdateTask={handleTaskUpdate}
               onBack={() => { setSelectedTask(null); setView('DASHBOARD'); }}
             />

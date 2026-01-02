@@ -1,9 +1,10 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { Task, User, Group, TaskStatus, ReportingFrequency } from '../types';
 import { PieChart, Pie, Cell, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
-import { dataService } from '../services/dataService';
+import { dataService, SystemConfig } from '../services/dataService';
 import { GanttChart } from './GanttChart';
-import { CheckCircle2, AlertCircle, Clock, Loader2, Trash2 } from 'lucide-react';
+import { CheckCircle2, AlertCircle, Clock, Loader2, Trash2, Mail } from 'lucide-react';
+import emailjs from '@emailjs/browser';
 
 interface DashboardProps {
   tasks: Task[];
@@ -13,6 +14,87 @@ interface DashboardProps {
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({ tasks, users, groups, onTaskClick }) => {
+  // Bulk Delete State
+  const [selectedTaskIds, setSelectTaskIds] = useState<Set<string>>(new Set());
+
+  // Email Reminders State
+  const [isSendingReminders, setIsSendingReminders] = useState(false);
+  const [config, setConfig] = useState<SystemConfig | null>(null);
+
+  useEffect(() => {
+    const unsub = dataService.subscribeToConfig(setConfig);
+    return () => unsub();
+  }, []);
+
+  const toggleSelectTask = (id: string) => {
+    const newSet = new Set(selectedTaskIds);
+    if (newSet.has(id)) newSet.delete(id);
+    else newSet.add(id);
+    setSelectTaskIds(newSet);
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedTaskIds.size === 0) return;
+    if (confirm(`確定要刪除選取的 ${selectedTaskIds.size} 個任務嗎？`)) {
+      for (const id of Array.from(selectedTaskIds)) {
+        await dataService.deleteTask(id);
+      }
+      setSelectTaskIds(new Set());
+    }
+  };
+
+  const handleSendReminders = async () => {
+    if (!config || !config.emailJsServiceId) {
+      alert('請先至系統設定配置 EmailJS');
+      return;
+    }
+
+    const overdueTasks = tasks.filter(t => dataService.checkMissedReports(t));
+    if (overdueTasks.length === 0) {
+      alert('目前沒有逾期任務');
+      return;
+    }
+
+    setIsSendingReminders(true);
+    let sentCount = 0;
+
+    for (const task of overdueTasks) {
+      let emailTo = '';
+      let name = '';
+      if (task.assigneeType === 'USER') {
+        const u = users.find(user => user.id === task.assigneeId);
+        emailTo = u?.email || '';
+        name = u?.name || 'User';
+      } else {
+        // For groups, maybe skip or send to first member? Simplified to skip for now to avoid complexity
+        continue;
+      }
+
+      if (emailTo) {
+        try {
+          await emailjs.send(
+            config.emailJsServiceId,
+            config.emailJsTemplateId, // Use default template, or a specific reminder one if we had it. Using default for now.
+            {
+              to_name: name,
+              to_email: emailTo,
+              message: `【逾期回報提醒】\n您的任務「${task.title}」已超過規定的回報時間 (${task.reportingFrequency})。\n請盡速登入系統回報進度。`,
+              task_link: `${config.systemBaseUrl || window.location.origin}/?taskId=${task.id}`,
+              task_title: task.title,
+              submitter: '系統自動提醒'
+            },
+            config.emailJsPublicKey
+          );
+          sentCount++;
+        } catch (e) {
+          console.error("Reminder failed", e);
+        }
+      }
+    }
+
+    setIsSendingReminders(false);
+    alert(`已發送 ${sentCount} 封催繳信！`);
+  };
 
   const statusCounts = useMemo(() => {
     return [
@@ -123,7 +205,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ tasks, users, groups, onTa
             <AlertCircle size={24} />
           </div>
           <div>
-            <p className="text-gray-500 text-sm">回報逾期</p>
+            <h3 className="text-gray-500 text-sm">回報逾期</h3>
             <p className={`text-2xl font-bold ${overdueTasksCount > 0 ? 'text-red-600' : 'text-gray-800'}`}>{overdueTasksCount}</p>
           </div>
         </div>
@@ -156,13 +238,35 @@ export const Dashboard: React.FC<DashboardProps> = ({ tasks, users, groups, onTa
           </div>
         </div>
 
-        {/* Task List Preview */}
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 lg:col-span-2 overflow-y-auto max-h-[400px]">
-          <h3 className="text-lg font-bold text-gray-800 mb-4">近期任務概覽</h3>
+        {/* Task List Preview (With Bulk Delete) */}
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 lg:col-span-2 overflow-y-auto max-h-[400px] relative">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-bold text-gray-800">近期任務概覽</h3>
+            {selectedTaskIds.size > 0 && (
+              <button
+                onClick={handleBulkDelete}
+                className="bg-red-600 text-white px-3 py-1.5 rounded-lg text-sm font-bold shadow hover:bg-red-700 transition flex items-center"
+              >
+                <Trash2 size={16} className="mr-1" />
+                刪除 ({selectedTaskIds.size})
+              </button>
+            )}
+          </div>
           <table className="w-full text-sm text-left">
             <thead className="bg-gray-50 text-gray-500">
               <tr>
-                <th className="px-4 py-3 rounded-l-lg">任務名稱</th>
+                <th className="px-4 py-3 rounded-l-lg w-10">
+                  <input
+                    type="checkbox"
+                    checked={tasks.length > 0 && selectedTaskIds.size === tasks.length}
+                    onChange={e => {
+                      if (e.target.checked) setSelectTaskIds(new Set(tasks.map(t => t.id)));
+                      else setSelectTaskIds(new Set());
+                    }}
+                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                </th>
+                <th className="px-4 py-3">任務名稱</th>
                 <th className="px-4 py-3">負責人/組</th>
                 <th className="px-4 py-3">截止日</th>
                 <th className="px-4 py-3">進度</th>
@@ -180,12 +284,26 @@ export const Dashboard: React.FC<DashboardProps> = ({ tasks, users, groups, onTa
                   <tr key={task.id}
                     onClick={() => onTaskClick(task)}
                     className="border-b last:border-0 hover:bg-gray-50 transition-colors cursor-pointer group">
+                    <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        checked={selectedTaskIds.has(task.id)}
+                        onChange={() => toggleSelectTask(task.id)}
+                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                    </td>
                     <td className="px-4 py-3 font-medium text-gray-800">{task.title}</td>
                     <td className="px-4 py-3 text-gray-600">{assigneeName}</td>
                     <td className="px-4 py-3 text-gray-500">{new Date(task.dueDate).toLocaleDateString()}</td>
                     <td className="px-4 py-3">
                       <div className="w-full bg-gray-200 rounded-full h-2.5">
-                        <div className="bg-blue-600 h-2.5 rounded-full" style={{ width: `${task.progress}%` }}></div>
+                        <div
+                          className={`h-2.5 rounded-full ${task.status === TaskStatus.COMPLETED ? 'bg-green-500' :
+                            task.status === TaskStatus.BLOCKED ? 'bg-red-500' :
+                              task.progress >= 100 ? 'bg-green-500' : 'bg-blue-600'
+                            }`}
+                          style={{ width: `${task.progress}%` }}
+                        ></div>
                       </div>
                       <span className="text-xs text-gray-500 mt-1 inline-block">{task.progress}%</span>
                     </td>
@@ -241,11 +359,21 @@ export const Dashboard: React.FC<DashboardProps> = ({ tasks, users, groups, onTa
       {/* Missed Reports Trend */}
       {overdueTasksCount > 0 && (
         <div className="bg-white p-6 rounded-xl shadow-sm border border-red-100">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-bold text-red-600 flex items-center">
-              <AlertCircle size={20} className="mr-2" /> 未回報/逾期趨勢
-            </h3>
-            <span className="text-sm text-gray-500">統計目前所有逾期未更新進度的任務</span>
+          <div className="flex flex-col md:flex-row md:items-center justify-between mb-4 gap-4">
+            <div>
+              <h3 className="text-lg font-bold text-red-600 flex items-center">
+                <AlertCircle size={20} className="mr-2" /> 未回報/逾期趨勢
+              </h3>
+              <span className="text-sm text-gray-500">統計目前所有逾期未更新進度的任務</span>
+            </div>
+            <button
+              onClick={handleSendReminders}
+              disabled={isSendingReminders}
+              className="bg-red-600 text-white px-4 py-2 rounded-lg font-bold shadow hover:bg-red-700 transition flex items-center disabled:opacity-50"
+            >
+              {isSendingReminders ? <Loader2 className="animate-spin mr-2" size={18} /> : <Mail size={18} className="mr-2" />}
+              一鍵發送催繳信 (Email)
+            </button>
           </div>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
