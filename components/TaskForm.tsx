@@ -213,7 +213,7 @@ TaskFlow Pro 系統通知`;
           )}
           {emailStatus === 'ERROR' && (
             <p className="text-sm text-red-500 mb-2 bg-red-50 p-2 rounded">
-              ⚠ 自動發信失敗，請使用下方按鈕手動通知
+              ⚠ 自動發信失敗 (可能是超過每月免費額度)，請使用下方按鈕手動通知
             </p>
           )}
           {emailStatus === 'IDLE' && !config.emailJsServiceId && (
