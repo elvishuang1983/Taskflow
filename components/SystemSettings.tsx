@@ -48,8 +48,20 @@ export const SystemSettings: React.FC = () => {
             alert('請輸入測試用的收件信箱');
             return;
         }
+
+        // 1. Outlook Mode Test
+        if (config.notificationPreference === 'OUTLOOK') {
+            const subject = encodeURIComponent('TaskFlow Pro 系統測試信');
+            const body = encodeURIComponent(`這是一封測試郵件。\n\n如果您看到此視窗，代表您的 Outlook/手動開啟功能正常。\n\n收件人: ${testEmail}`);
+            window.location.href = `mailto:${testEmail}?subject=${subject}&body=${body}`;
+            setTestStatus('SUCCESS');
+            setTimeout(() => setTestStatus('IDLE'), 2000);
+            return;
+        }
+
+        // 2. EmailJS Mode Test
         if (!config.emailJsServiceId || !config.emailJsTemplateId || !config.emailJsPublicKey) {
-            alert('請先儲存完整的設定資訊');
+            alert('請先填寫並「儲存」完整的設定資訊 (Service ID, Template ID, Public Key)');
             return;
         }
 
@@ -67,14 +79,17 @@ export const SystemSettings: React.FC = () => {
             await emailjs.send(
                 config.emailJsServiceId,
                 config.emailJsTemplateId,
-                templateParams
+                templateParams,
+                config.emailJsPublicKey // Pass Public Key explicitly
             );
             setTestStatus('SUCCESS');
             alert('測試郵件發送成功！請檢查您的信箱。');
-        } catch (error) {
+        } catch (error: any) {
             console.error(error);
             setTestStatus('ERROR');
-            alert('測試發送失敗。請檢查 Service ID 是否正確，或是否已在 EmailJS 後台連結 Gmail 帳號。');
+            // Show specific error from EmailJS if available
+            const errorMsg = error?.text || error?.message || '未知錯誤';
+            alert(`測試發送失敗。\n\n錯誤詳情: ${errorMsg}\n\n請檢查 Service ID 是否正確，或是否已在 EmailJS 後台連結 Gmail 帳號。`);
         } finally {
             setTimeout(() => setTestStatus('IDLE'), 3000);
         }
