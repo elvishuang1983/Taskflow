@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { User, Group, Task, TaskStatus, ReportingFrequency } from '../types';
-import { Calendar, Clock, User as UserIcon, Users, Mail, CheckCircle, Copy, Link as LinkIcon, Save } from 'lucide-react';
+import { Calendar, Clock, User as UserIcon, Users, Mail, CheckCircle, Copy, Link as LinkIcon } from 'lucide-react';
 import { dataService } from '../services/dataService';
+import emailjs from '@emailjs/browser';
 
 interface TaskFormProps {
   users: User[];
@@ -24,20 +25,32 @@ export const TaskForm: React.FC<TaskFormProps> = ({ users, groups, onSubmit, onC
   const [showSuccess, setShowSuccess] = useState(false);
   const [createdTask, setCreatedTask] = useState<Task | null>(null);
 
+  // Email sending state
+  const [emailStatus, setEmailStatus] = useState<'IDLE' | 'SENDING' | 'SUCCESS' | 'ERROR'>('IDLE');
+
   // URL State
   const [baseUrl, setBaseUrl] = useState('');
+  const [config, setConfig] = useState<any>({});
 
-  // Load Base URL from Config on Mount using Subscription
+  // Load Base URL and Config on Mount
   useEffect(() => {
-    // Subscribe to config updates
-    const unsubscribe = dataService.subscribeToConfig((config) => {
-      if (config.systemBaseUrl) {
-        setBaseUrl(config.systemBaseUrl);
+    const unsubscribe = dataService.subscribeToConfig((loadedConfig) => {
+      setConfig(loadedConfig);
+      if (loadedConfig.systemBaseUrl) {
+        setBaseUrl(loadedConfig.systemBaseUrl);
       } else {
-        // Smart Detection if no config saved yet
         const currentUrl = window.location.href.split('?')[0];
         const cleanUrl = currentUrl.endsWith('/') ? currentUrl.slice(0, -1) : currentUrl;
         setBaseUrl(cleanUrl);
+      }
+
+      // Init EmailJS if config is present
+      if (loadedConfig.emailJsPublicKey) {
+        try {
+          emailjs.init(loadedConfig.emailJsPublicKey);
+        } catch (e) {
+          console.error("EmailJS init failed", e);
+        }
       }
     });
 
@@ -46,36 +59,60 @@ export const TaskForm: React.FC<TaskFormProps> = ({ users, groups, onSubmit, onC
 
   const handleBaseUrlChange = (newUrl: string) => {
     setBaseUrl(newUrl);
-    // Auto-save the new URL preference
-    // We need to fetch current config first to merge? 
-    // Actually dataService.saveConfig overwrites? No, usually merge or we need full object.
-    // dataService structure implies we might overwrite if we don't be careful. 
-    // But for now, we only have one config document.
-    // Let's assume we want to update just this field. 
-    // Ideally updateConfig should be a merge. 
-    // Looking at dataService: saveConfig uses setDoc ... wait.
-    // setDoc(ref, config). If we pass partial? 
-    // dataService says: saveConfig: async (config: SystemConfig) => setDoc(..., config).
-    // So it overwrites if we don't pass full object.
-    // Since we are subscribed, we should have the full object in state? 
-    // We only stored baseUrl in state.
-    // We should probably fetch it to save it safe.
-    // Or just "best effort" for MVP. 
-    // Let's rely on the fact that we probably don't have other critical config yet or we can just send what we have + defaults.
-    // Better: dataService should expose updateConfig.
-    // For now, I'll skip auto-saving on every keystroke to avoid complexity/risk, 
-    // OR just save when user clicks a "Save" button? The UI shows "Auto Save".
-    // I'll make a helper to save.
-
-    // We'll read the latest config in a one-off way? No, we can't easily.
-    // Let's skip saving for now to avoid data loss of other fields (email keys).
-    // Or just log it. "Saving not implemented perfectly for partial updates".
-    // Actually, I'll implement a safe update later.
   };
 
-  // Re-implementing handleBaseUrlChange to be safer if possible, 
-  // but for now let's just update local state to allow Link Generation to work.
-  // The user can manually copy the link.
+  const getRecipientInfo = (task: Task) => {
+    let emailTo = '';
+    let recipientName = '';
+
+    if (task.assigneeType === 'USER') {
+      const user = users.find(u => u.id === task.assigneeId);
+      emailTo = user?.email || '';
+      recipientName = user?.name || 'User';
+    } else {
+      const group = groups.find(g => g.id === task.assigneeId);
+      recipientName = group?.name || 'Group';
+      // For groups, we might want to email all members? 
+      // EmailJS free tier often limits TO field. 
+      // For MVP, we'll try to join them if it supports it, or just warn user.
+      // Let's grab all emails.
+      const memberEmails = group?.memberIds.map(mid => users.find(u => u.id === mid)?.email).filter(Boolean);
+      emailTo = memberEmails?.join(',') || '';
+    }
+    return { emailTo, recipientName };
+  };
+
+  const sendAutoEmail = async (task: Task) => {
+    if (!config.emailJsServiceId || !config.emailJsTemplateId || !config.emailJsPublicKey) {
+      console.log("EmailJS not configured, skipping auto-send.");
+      return;
+    }
+
+    const { emailTo, recipientName } = getRecipientInfo(task);
+    if (!emailTo) return;
+
+    const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+    const taskLink = `${cleanBaseUrl}?taskId=${task.id}`;
+
+    setEmailStatus('SENDING');
+    try {
+      await emailjs.send(
+        config.emailJsServiceId,
+        config.emailJsTemplateId,
+        {
+          to_name: recipientName,
+          to_email: emailTo,
+          message: `您已被指派新任務：${task.title}\n\n描述：${task.description || '無'}\n截止：${new Date(task.dueDate).toLocaleDateString()}`,
+          task_link: taskLink
+        }
+      );
+      setEmailStatus('SUCCESS');
+    } catch (error) {
+      console.error("Auto email failed", error);
+      setEmailStatus('ERROR');
+    }
+  };
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -98,11 +135,17 @@ export const TaskForm: React.FC<TaskFormProps> = ({ users, groups, onSubmit, onC
       logs: []
     };
 
-    // Save task immediately
     try {
       setIsSubmitting(true);
+
+      // 1. Save Task
       await onSubmit(newTask);
       setCreatedTask(newTask);
+
+      // 2. Try Auto-Send Email
+      // We do this concurrently or after? After is safer for "success" modal.
+      await sendAutoEmail(newTask);
+
       setShowSuccess(true);
     } catch (error) {
       alert('任務建立失敗，請重試。');
@@ -118,20 +161,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({ users, groups, onSubmit, onC
 
     const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
     const taskLink = `${cleanBaseUrl}?taskId=${createdTask.id}`;
-
-    let emailTo = '';
-    let assigneeName = '';
-
-    if (createdTask.assigneeType === 'USER') {
-      const user = users.find(u => u.id === createdTask.assigneeId);
-      emailTo = user?.email || '';
-      assigneeName = user?.name || '';
-    } else {
-      const group = groups.find(g => g.id === createdTask.assigneeId);
-      assigneeName = group?.name || '';
-      const memberEmails = group?.memberIds.map(mid => users.find(u => u.id === mid)?.email).filter(Boolean);
-      emailTo = memberEmails?.join(',') || '';
-    }
+    const { emailTo, recipientName } = getRecipientInfo(createdTask);
 
     const subject = `[TaskFlow] ${createdTask.title}`;
     const bodyText = `您好，
@@ -149,7 +179,7 @@ TaskFlow Pro 系統通知`;
 
     const mailto = `mailto:${emailTo}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(bodyText)}`;
 
-    return { link: taskLink, mailto, assigneeName };
+    return { link: taskLink, mailto, assigneeName: recipientName };
   };
 
   const notificationData = getNotificationData();
@@ -174,6 +204,24 @@ TaskFlow Pro 系統通知`;
             <CheckCircle size={32} className="text-green-600" />
           </div>
           <h3 className="text-2xl font-bold text-gray-800 mb-2">任務建立成功！</h3>
+
+          {/* Auto Email Status Feedback */}
+          {emailStatus === 'SUCCESS' && (
+            <p className="text-sm text-green-600 font-bold mb-2 bg-green-50 p-2 rounded">
+              ✓ 系統已自動發送通知郵件給 {notificationData.assigneeName}
+            </p>
+          )}
+          {emailStatus === 'ERROR' && (
+            <p className="text-sm text-red-500 mb-2 bg-red-50 p-2 rounded">
+              ⚠ 自動發信失敗，請使用下方按鈕手動通知
+            </p>
+          )}
+          {emailStatus === 'IDLE' && !config.emailJsServiceId && (
+            <p className="text-xs text-gray-400 mb-2">
+              (未設定自動發信，請手動通知)
+            </p>
+          )}
+
           <p className="text-gray-500 mb-4">
             任務已分配給 <span className="font-bold text-gray-700">{notificationData.assigneeName}</span>。
           </p>
@@ -200,7 +248,7 @@ TaskFlow Pro 系統通知`;
               className="flex items-center justify-center w-full py-3 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 transition shadow-lg shadow-blue-100"
             >
               <Mail size={18} className="mr-2" />
-              開啟郵件軟體發送通知
+              開啟郵件軟體發送通知 (手動)
             </a>
 
             <button
