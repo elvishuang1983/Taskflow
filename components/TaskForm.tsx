@@ -7,11 +7,12 @@ import emailjs from '@emailjs/browser';
 interface TaskFormProps {
   users: User[];
   groups: Group[];
+  currentUserName: string;
   onSubmit: (task: Task) => Promise<void> | void;
   onCancel: () => void;
 }
 
-export const TaskForm: React.FC<TaskFormProps> = ({ users, groups, onSubmit, onCancel }) => {
+export const TaskForm: React.FC<TaskFormProps> = ({ users, groups, currentUserName, onSubmit, onCancel }) => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [assigneeType, setAssigneeType] = useState<'USER' | 'GROUP'>('USER');
@@ -93,6 +94,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({ users, groups, onSubmit, onC
 
     const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
     const taskLink = `${cleanBaseUrl}?taskId=${task.id}`;
+    const nowStr = new Date().toLocaleString('zh-TW');
 
     setEmailStatus('SENDING');
     try {
@@ -102,8 +104,33 @@ export const TaskForm: React.FC<TaskFormProps> = ({ users, groups, onSubmit, onC
         {
           to_name: recipientName,
           to_email: emailTo,
-          message: `您已被指派新任務：${task.title}\n\n描述：${task.description || '無'}\n截止：${new Date(task.dueDate).toLocaleDateString()}`,
-          task_link: taskLink
+          // Detailed Message Body covering all requested info
+          message: `您好，
+
+有新的任務提交資訊如下：
+----------------------------------
+提交人：${currentUserName}
+任務名稱：${task.title}
+任務代碼：${task.id}
+提交時間：${nowStr}
+
+備註/說明：
+${task.description || '無'}
+
+截止日期：${new Date(task.dueDate).toLocaleDateString()}
+
+請點擊以下連結回報進度：
+${taskLink}
+----------------------------------
+這是由系統自動發出的通知郵件。`,
+
+          // Also pass individual params in case template uses them
+          task_link: taskLink,
+          submitter: currentUserName,
+          task_title: task.title,
+          task_id: task.id,
+          created_at: nowStr,
+          due_date: new Date(task.dueDate).toLocaleDateString()
         }
       );
       setEmailStatus('SUCCESS');

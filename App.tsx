@@ -454,6 +454,7 @@ export default function App() {
             <TaskForm
               users={users}
               groups={groups}
+              currentUserName={currentUser.name}
               onSubmit={handleCreateTask}
               onCancel={() => setView('DASHBOARD')}
             />
