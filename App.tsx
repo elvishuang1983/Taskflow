@@ -9,7 +9,7 @@ import { dataService } from './services/dataService';
 import { Task, User, Group } from './types';
 
 // App Modes
-type ViewMode = 'DASHBOARD' | 'CREATE_TASK' | 'USER_MANAGEMENT';
+type ViewMode = 'DASHBOARD' | 'CREATE_TASK' | 'USER_MANAGEMENT' | 'TASK_DETAIL';
 
 // 1. Setup Screen (For first time use / empty system)
 const SetupScreen = ({ onSetup }: { onSetup: (name: string, email: string, password: string) => void }) => {
@@ -285,6 +285,12 @@ export default function App() {
     }
   };
 
+
+  const handleTaskClick = (task: Task) => {
+    setSelectedTask(task);
+    setView('TASK_DETAIL');
+  };
+
   // Executor Actions
   const handleTaskUpdate = (updatedTask: Task) => {
     dataService.updateTask(updatedTask);
@@ -395,9 +401,12 @@ export default function App() {
         <header className="flex justify-between items-center mb-8">
           <div>
             <h1 className="text-2xl font-bold text-gray-800">
+
               {view === 'DASHBOARD' ? '專案進度總覽' :
-                view === 'CREATE_TASK' ? '任務分配中心' : '系統人員管理'}
+                view === 'CREATE_TASK' ? '任務分配中心' :
+                  view === 'USER_MANAGEMENT' ? '系統人員管理' : '任務詳細資訊'}
             </h1>
+
             <p className="text-gray-500 text-sm mt-1">
               {new Date().toLocaleDateString('zh-TW', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' })}
             </p>
@@ -406,7 +415,7 @@ export default function App() {
 
         <div className="animate-fade-in-up">
           {view === 'DASHBOARD' && (
-            <Dashboard tasks={tasks} users={users} groups={groups} />
+            <Dashboard tasks={tasks} users={users} groups={groups} onTaskClick={handleTaskClick} />
           )}
           {view === 'CREATE_TASK' && (
             <TaskForm
@@ -425,6 +434,13 @@ export default function App() {
               onDeleteUser={handleUserDelete}
               onAddGroup={handleGroupAdd}
               onDeleteGroup={handleGroupDelete}
+            />
+          )}
+          {view === 'TASK_DETAIL' && selectedTask && (
+            <ExecutorView
+              task={selectedTask}
+              onUpdateTask={handleTaskUpdate}
+              onBack={() => { setSelectedTask(null); setView('DASHBOARD'); }}
             />
           )}
         </div>

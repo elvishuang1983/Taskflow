@@ -9,9 +9,10 @@ interface DashboardProps {
   tasks: Task[];
   users: User[];
   groups: Group[];
+  onTaskClick: (task: Task) => void;
 }
 
-export const Dashboard: React.FC<DashboardProps> = ({ tasks, users, groups }) => {
+export const Dashboard: React.FC<DashboardProps> = ({ tasks, users, groups, onTaskClick }) => {
 
   const statusCounts = useMemo(() => {
     return [
@@ -139,7 +140,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ tasks, users, groups }) =>
                   : groups.find(g => g.id === task.assigneeId)?.name;
 
                 return (
-                  <tr key={task.id} className="border-b last:border-0 hover:bg-gray-50 transition-colors">
+                  <tr key={task.id}
+                    onClick={() => onTaskClick(task)}
+                    className="border-b last:border-0 hover:bg-gray-50 transition-colors cursor-pointer">
                     <td className="px-4 py-3 font-medium text-gray-800">{task.title}</td>
                     <td className="px-4 py-3 text-gray-600">{assigneeName}</td>
                     <td className="px-4 py-3 text-gray-500">{new Date(task.dueDate).toLocaleDateString()}</td>
