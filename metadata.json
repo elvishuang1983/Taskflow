@@ -1,0 +1,5 @@
+{
+  "name": "TaskFlow Pro",
+  "description": "A comprehensive task management system for managers to assign work and track progress via Gantt charts, and for executors to report status and log hours.",
+  "requestFramePermissions": []
+}

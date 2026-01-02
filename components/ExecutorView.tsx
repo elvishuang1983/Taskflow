@@ -1,0 +1,204 @@
+import React, { useState } from 'react';
+import { Task, TaskStatus, ProgressLog } from '../types';
+import { Send, Upload, Clock, AlertTriangle, ArrowLeft, FileText, Image as ImageIcon } from 'lucide-react';
+
+interface ExecutorViewProps {
+  task: Task;
+  onUpdateTask: (task: Task) => void;
+  onBack: () => void;
+}
+
+export const ExecutorView: React.FC<ExecutorViewProps> = ({ task, onUpdateTask, onBack }) => {
+  const [progress, setProgress] = useState(task.progress);
+  const [status, setStatus] = useState<TaskStatus>(task.status);
+  const [hoursSpent, setHoursSpent] = useState(0);
+  const [comment, setComment] = useState('');
+  const [fileName, setFileName] = useState<string | null>(null);
+  const [fileData, setFileData] = useState<string | undefined>(undefined);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const file = e.target.files[0];
+      setFileName(file.name);
+
+      // Convert to Base64
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setFileData(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    const newLog: ProgressLog = {
+      id: `log-${Date.now()}`,
+      timestamp: Date.now(),
+      hoursSpent: Number(hoursSpent),
+      comment,
+      attachmentName: fileName || undefined,
+      attachmentData: fileData
+    };
+
+    const updatedTask: Task = {
+      ...task,
+      progress: Number(progress),
+      status,
+      logs: [newLog, ...task.logs]
+    };
+
+    onUpdateTask(updatedTask);
+    
+    // Reset form
+    setHoursSpent(0);
+    setComment('');
+    setFileName(null);
+    setFileData(undefined);
+    alert('進度回報成功！');
+  };
+
+  return (
+    <div className="max-w-4xl mx-auto space-y-6">
+      {/* Header */}
+      <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+        <button onClick={onBack} className="flex items-center text-sm text-gray-500 hover:text-blue-600 mb-4 transition">
+            <ArrowLeft size={16} className="mr-1"/> 返回任務列表
+        </button>
+        
+        <div className="flex justify-between items-start">
+            <h1 className="text-3xl font-bold text-gray-800">{task.title}</h1>
+            <div className={`px-4 py-2 rounded-lg font-bold text-white text-sm
+            ${task.status === TaskStatus.COMPLETED ? 'bg-green-500' : 
+                task.status === TaskStatus.BLOCKED ? 'bg-red-500' : 'bg-blue-500'}`}>
+            {task.status === TaskStatus.COMPLETED ? '已完成' : 
+                task.status === TaskStatus.BLOCKED ? '卡關中' : 
+                task.status === TaskStatus.IN_PROGRESS ? '進行中' : '待處理'}
+            </div>
+        </div>
+        <p className="text-gray-500 mt-2 bg-gray-50 p-4 rounded-lg">{task.description}</p>
+        <div className="flex gap-6 mt-4 text-sm text-gray-600">
+            <span className="flex items-center"><Clock size={16} className="mr-1"/> 截止: {new Date(task.dueDate).toLocaleDateString()}</span>
+            <span className="flex items-center"><AlertTriangle size={16} className="mr-1"/> 預估: {task.estimatedDuration} 小時</span>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Report Form */}
+        <div className="md:col-span-2 bg-white p-6 rounded-xl shadow-sm border border-gray-100 h-fit">
+          <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center">
+            <Send size={20} className="mr-2 text-blue-600"/> 回報進度
+          </h3>
+          
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="grid grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">本次花費工時 (小時)</label>
+                <input
+                  type="number"
+                  step="0.5"
+                  required
+                  min="0"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                  value={hoursSpent}
+                  onChange={e => setHoursSpent(parseFloat(e.target.value))}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">當前任務狀態</label>
+                <select
+                  value={status}
+                  onChange={e => setStatus(e.target.value as TaskStatus)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                >
+                  <option value={TaskStatus.IN_PROGRESS}>進行中</option>
+                  <option value={TaskStatus.BLOCKED}>遇到困難 (Blocked)</option>
+                  <option value={TaskStatus.COMPLETED}>已完成</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">總體完成進度 ({progress}%)</label>
+              <input
+                type="range"
+                min="0"
+                max="100"
+                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                value={progress}
+                onChange={e => setProgress(Number(e.target.value))}
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">進度說明 / 困難回報</label>
+              <textarea
+                required
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none h-32 resize-none"
+                placeholder="請描述您完成了什麼，或是遇到了什麼問題..."
+                value={comment}
+                onChange={e => setComment(e.target.value)}
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">附件上傳 (圖片/文件)</label>
+              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:bg-gray-50 transition cursor-pointer relative">
+                <input 
+                  type="file" 
+                  accept="image/*,.pdf,.doc,.docx"
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                  onChange={handleFileChange}
+                />
+                <Upload className="mx-auto text-gray-400 mb-2" />
+                <p className="text-gray-500 text-sm">
+                  {fileName ? <span className="text-blue-600 font-medium">{fileName}</span> : '點擊或拖放檔案至此'}
+                </p>
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              className="w-full py-3 rounded-lg bg-blue-600 text-white font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 transition"
+            >
+              提交回報
+            </button>
+          </form>
+        </div>
+
+        {/* History Log with File Preview */}
+        <div className="md:col-span-1 space-y-4">
+          <h3 className="text-lg font-bold text-gray-800">歷史紀錄</h3>
+          <div className="space-y-4 max-h-[800px] overflow-y-auto pr-2">
+            {task.logs.length === 0 && <p className="text-gray-400 text-sm">暫無回報紀錄</p>}
+            {task.logs.map(log => (
+              <div key={log.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 relative pl-6">
+                <div className="absolute left-0 top-4 bottom-4 w-1 bg-gray-200 rounded-r"></div>
+                <div className="flex justify-between items-start mb-2">
+                   <span className="text-xs text-gray-400">{new Date(log.timestamp).toLocaleString()}</span>
+                   <span className="text-xs font-bold bg-gray-100 px-2 py-1 rounded text-gray-600">+{log.hoursSpent} hr</span>
+                </div>
+                <p className="text-gray-700 text-sm mb-2 whitespace-pre-wrap">{log.comment}</p>
+                {log.attachmentName && (
+                  <div className="mt-2 pt-2 border-t border-gray-100">
+                    <div className="flex items-center text-xs text-blue-500 mb-2">
+                      <FileText size={12} className="mr-1"/> {log.attachmentName}
+                    </div>
+                    {/* Show Image Preview if it is an image */}
+                    {log.attachmentData && log.attachmentData.startsWith('data:image') && (
+                        <div className="rounded overflow-hidden border border-gray-200">
+                             <img src={log.attachmentData} alt="attachment" className="w-full h-auto object-cover max-h-32" />
+                        </div>
+                    )}
+                     {/* For non-images or if data is missing, we could add a download link simulation if needed, but display is sufficient for now */}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
