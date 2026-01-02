@@ -1,15 +1,25 @@
-import React, { useState, useEffect } from 'react';
-import { LayoutDashboard, PlusCircle, Users, LogOut, Briefcase, UserCircle2, ShieldCheck, ArrowRight } from 'lucide-react';
-import { Dashboard } from './components/Dashboard';
-import { TaskForm } from './components/TaskForm';
-import { ExecutorView } from './components/ExecutorView';
-import { ExecutorTaskList } from './components/ExecutorTaskList';
-import { UserManagement } from './components/UserManagement';
-import { dataService } from './services/dataService';
-import { Task, User, Group } from './types';
+import { LayoutDashboard, PlusCircle, Users, LogOut, Briefcase, UserCircle2, ShieldCheck, ArrowRight, Settings } from 'lucide-react';
+import { SystemSettings } from './components/SystemSettings';
 
-// App Modes
-type ViewMode = 'DASHBOARD' | 'CREATE_TASK' | 'USER_MANAGEMENT' | 'TASK_DETAIL';
+// ... existing imports
+
+type ViewMode = 'DASHBOARD' | 'CREATE_TASK' | 'USER_MANAGEMENT' | 'TASK_DETAIL' | 'SYSTEM_SETTINGS';
+
+// ... existing code ...
+
+          <SidebarItem
+            icon={Users}
+            label="人員與群組"
+            active={view === 'USER_MANAGEMENT'}
+            onClick={() => setView('USER_MANAGEMENT')}
+          />
+          <SidebarItem
+             icon={Settings}
+             label="系統設定"
+             active={view === 'SYSTEM_SETTINGS'}
+             onClick={() => setView('SYSTEM_SETTINGS')}
+          />
+        </nav >
 
 // 1. Setup Screen (For first time use / empty system)
 const SetupScreen = ({ onSetup }: { onSetup: (name: string, email: string, password: string) => void }) => {
@@ -430,7 +440,8 @@ export default function App() {
             <h1 className="text-2xl font-bold text-gray-800">
               {view === 'DASHBOARD' ? '專案進度總覽' :
                 view === 'CREATE_TASK' ? '任務分配中心' :
-                  view === 'USER_MANAGEMENT' ? '系統人員管理' : '任務詳細資訊'}
+                  view === 'USER_MANAGEMENT' ? '系統人員管理' :
+                    view === 'SYSTEM_SETTINGS' ? '系統參數設定' : '任務詳細資訊'}
             </h1>
             <p className="text-gray-500 text-sm mt-1">
               {new Date().toLocaleDateString('zh-TW', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' })}
@@ -460,6 +471,9 @@ export default function App() {
               onAddGroup={handleGroupAdd}
               onDeleteGroup={handleGroupDelete}
             />
+          )}
+          {view === 'SYSTEM_SETTINGS' && (
+            <SystemSettings />
           )}
           {view === 'TASK_DETAIL' && selectedTask && (
             <ExecutorView
