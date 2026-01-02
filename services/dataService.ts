@@ -88,6 +88,9 @@ export const dataService = {
   updateTask: async (task: Task) => {
     await setDoc(doc(db, TASKS_COL, task.id), task, { merge: true });
   },
+  deleteTask: async (id: string) => {
+    await deleteDoc(doc(db, TASKS_COL, id));
+  },
 
   // Helpers (Logic mostly remains, but checking missed reports is pure logic)
   checkMissedReports: (task: Task): boolean => {

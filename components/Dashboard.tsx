@@ -3,7 +3,7 @@ import { Task, User, Group, TaskStatus, ReportingFrequency } from '../types';
 import { PieChart, Pie, Cell, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { dataService } from '../services/dataService';
 import { GanttChart } from './GanttChart';
-import { CheckCircle2, AlertCircle, Clock, Loader2 } from 'lucide-react';
+import { CheckCircle2, AlertCircle, Clock, Loader2, Trash2 } from 'lucide-react';
 
 interface DashboardProps {
   tasks: Task[];
@@ -45,11 +45,47 @@ export const Dashboard: React.FC<DashboardProps> = ({ tasks, users, groups, onTa
     }));
   }, [tasks, users, groups]);
 
+  // Workload by User (Stacked Bar Chart)
+  const workloadData = useMemo(() => {
+    const userStats: Record<string, { name: string; pending: number; inProgress: number; completed: number; blocked: number }> = {};
+
+    // Initialize all users
+    users.forEach(u => {
+      userStats[u.id] = { name: u.name, pending: 0, inProgress: 0, completed: 0, blocked: 0 };
+    });
+
+    tasks.forEach(task => {
+      if (task.assigneeType === 'USER' && userStats[task.assigneeId]) {
+        const stats = userStats[task.assigneeId];
+        if (task.status === TaskStatus.PENDING) stats.pending++;
+        else if (task.status === TaskStatus.IN_PROGRESS) stats.inProgress++;
+        else if (task.status === TaskStatus.COMPLETED) stats.completed++;
+        else if (task.status === TaskStatus.BLOCKED) stats.blocked++;
+      }
+      // For Groups, we skip or could split (simplified for now to just show Users)
+    });
+
+    return Object.values(userStats).filter(s => (s.pending + s.inProgress + s.completed + s.blocked) > 0);
+  }, [tasks, users]);
+
+
   const overdueTasksCount = missedReportsData.reduce((acc, cur) => acc + cur.count, 0);
 
   const totalTasks = tasks.length;
   const completedTasks = tasks.filter(t => t.status === TaskStatus.COMPLETED).length;
   const completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+
+  const handleDeleteTask = async (e: React.MouseEvent, taskId: string) => {
+    e.stopPropagation(); // Prevent row click
+    if (confirm('確定要刪除此任務嗎？此動作無法復原。')) {
+      try {
+        await dataService.deleteTask(taskId);
+      } catch (error) {
+        console.error('Delete failed', error);
+        alert('刪除失敗');
+      }
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -131,6 +167,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ tasks, users, groups, onTa
                 <th className="px-4 py-3">截止日</th>
                 <th className="px-4 py-3">進度</th>
                 <th className="px-4 py-3 rounded-r-lg">狀態</th>
+                <th className="px-4 py-3">操作</th>
               </tr>
             </thead>
             <tbody>
@@ -142,7 +179,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ tasks, users, groups, onTa
                 return (
                   <tr key={task.id}
                     onClick={() => onTaskClick(task)}
-                    className="border-b last:border-0 hover:bg-gray-50 transition-colors cursor-pointer">
+                    className="border-b last:border-0 hover:bg-gray-50 transition-colors cursor-pointer group">
                     <td className="px-4 py-3 font-medium text-gray-800">{task.title}</td>
                     <td className="px-4 py-3 text-gray-600">{assigneeName}</td>
                     <td className="px-4 py-3 text-gray-500">{new Date(task.dueDate).toLocaleDateString()}</td>
@@ -163,6 +200,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ tasks, users, groups, onTa
                             task.status === TaskStatus.IN_PROGRESS ? '進行中' : '待處理'}
                       </span>
                     </td>
+                    <td className="px-4 py-3">
+                      <button
+                        onClick={(e) => handleDeleteTask(e, task.id)}
+                        className="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition opacity-0 group-hover:opacity-100"
+                        title="刪除任務"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </td>
                   </tr>
                 );
               })}
@@ -170,6 +216,27 @@ export const Dashboard: React.FC<DashboardProps> = ({ tasks, users, groups, onTa
           </table>
         </div>
       </div>
+
+      {/* User Workload Chart */}
+      <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+        <h3 className="text-lg font-bold text-gray-800 mb-4">人員工作量統計 (Tasks by User)</h3>
+        <div className="h-64">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={workloadData}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} />
+              <XAxis dataKey="name" />
+              <YAxis allowDecimals={false} />
+              <RechartsTooltip />
+              <Legend />
+              <Bar dataKey="completed" name="已完成" stackId="a" fill="#22C55E" barSize={40} />
+              <Bar dataKey="inProgress" name="進行中" stackId="a" fill="#3B82F6" barSize={40} />
+              <Bar dataKey="blocked" name="卡關" stackId="a" fill="#EF4444" barSize={40} />
+              <Bar dataKey="pending" name="待處理" stackId="a" fill="#9CA3AF" radius={[4, 4, 0, 0]} barSize={40} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
 
       {/* Missed Reports Trend */}
       {overdueTasksCount > 0 && (
