@@ -47,7 +47,7 @@ export const GanttChart: React.FC<GanttChartProps> = ({ tasks, users, groups }) 
               className="absolute top-[-20px] text-[10px] text-green-600 font-bold whitespace-nowrap transform -translate-x-1/2 flex flex-col items-center"
               style={{ left: `${((Date.now() - timelineStart) / timelineDuration) * 100}%` }}
             >
-              Today
+              Today {formatDate(Date.now())}
               <div className="w-1 h-1 bg-green-500 rounded-full mt-0.5"></div>
             </span>
 

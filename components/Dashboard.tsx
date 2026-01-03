@@ -74,12 +74,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ tasks, users, groups, curr
           to_name: name,
           to_email: emailTo,
           subject: `【任務進度急催】逾期回報警告 - ${task.title}`,
-          message: `【逾期回報催繳通知】\n\n您好 $recipientName，\n\n您的任務「${task.title}」已嚴重超過預定的回報頻率。目前系統偵測到您尚未提交最新的進度報告。\n\n請務必於收到此信後立即登入系統並提交回報，以利專案進度追蹤。\n\n任務連結：${config.systemBaseUrl || window.location.origin}/?taskId=${task.id}\n\n截止日期：${new Date(task.dueDate).toLocaleDateString()}\n回報頻率：${{
+          message: `【逾期回報催繳通知】\n\n您好 $recipientName，\n\n您的任務「${task.title}」已嚴重超過預定的回報頻率。目前系統偵測到您尚未提交最新的進度報告。\n\n請務必於收到此信後立即登入系統並提交回報，以利專案進度追蹤。\n\n任務連結：${config.systemBaseUrl || window.location.origin}/?taskId=${task.id}\n任務名稱：${task.title}\n任務ID：${task.id}\n創建日期：${new Date(task.startDate).toLocaleDateString()}\n截止日期：${new Date(task.dueDate).toLocaleDateString()}\n回報進度頻率：${{
             'HOURLY': '每小時',
             'DAILY': '每天',
             'WEEKLY': '每週',
             'MONTHLY': '每月'
-          }[task.reportingFrequency] || '一般'}\n\n這是一封自動發出的催繳通知，請儘速處理。`,
+          }[task.reportingFrequency] || '一般'}`,
           task_link: `${config.systemBaseUrl || window.location.origin}/?taskId=${task.id}`,
           task_title: task.title,
           submitter: '系統自動催繳'
