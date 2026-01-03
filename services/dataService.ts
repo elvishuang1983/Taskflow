@@ -17,6 +17,7 @@ export interface SystemConfig {
   emailJsPublicKey: string;
   systemBaseUrl?: string;
   notificationPreference?: 'EMAILJS' | 'OUTLOOK';
+  lastAutoReminderSentAt?: number;
 }
 
 export const dataService = {
@@ -125,5 +126,9 @@ export const dataService = {
 
   saveConfig: async (config: SystemConfig) => {
     await setDoc(doc(db, CONFIG_COL, 'main'), config);
+  },
+
+  updateConfig: async (config: Partial<SystemConfig>) => {
+    await setDoc(doc(db, CONFIG_COL, 'main'), config, { merge: true });
   }
 };

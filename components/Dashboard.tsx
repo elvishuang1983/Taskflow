@@ -10,10 +10,11 @@ interface DashboardProps {
   tasks: Task[];
   users: User[];
   groups: Group[];
+  currentUser: User;
   onTaskClick: (task: Task) => void;
 }
 
-export const Dashboard: React.FC<DashboardProps> = ({ tasks, users, groups, onTaskClick }) => {
+export const Dashboard: React.FC<DashboardProps> = ({ tasks, users, groups, currentUser, onTaskClick }) => {
   // Bulk Delete State
   const [selectedTaskIds, setSelectTaskIds] = useState<Set<string>>(new Set());
 
@@ -43,12 +44,50 @@ export const Dashboard: React.FC<DashboardProps> = ({ tasks, users, groups, onTa
     }
   };
 
-  const handleSendReminders = async () => {
+  const sendSingleReminder = async (task: Task, isSilent = false) => {
     if (!config || !config.emailJsServiceId) {
-      alert('請先至系統設定配置 EmailJS');
-      return;
+      if (!isSilent) alert('請先至系統設定配置 EmailJS');
+      return false;
     }
 
+    let emailTo = '';
+    let name = '';
+    if (task.assigneeType === 'USER') {
+      const u = users.find(user => user.id === task.assigneeId);
+      emailTo = u?.email || '';
+      name = u?.name || 'User';
+    } else {
+      const group = groups.find(g => g.id === task.assigneeId);
+      const firstMemberId = group?.memberIds[0];
+      const u = users.find(user => user.id === firstMemberId);
+      emailTo = u?.email || '';
+      name = u?.name || group?.name || 'Group';
+    }
+
+    if (!emailTo) return false;
+
+    try {
+      await emailjs.send(
+        config.emailJsServiceId,
+        config.emailJsTemplateId,
+        {
+          to_name: name,
+          to_email: emailTo,
+          message: `【逾期回報提醒】\n您的任務「${task.title}」已超過規定的回報時間。\n請盡速登入系統回報進度。`,
+          task_link: `${config.systemBaseUrl || window.location.origin}/?taskId=${task.id}`,
+          task_title: task.title,
+          submitter: '系統自動提醒'
+        },
+        config.emailJsPublicKey
+      );
+      return true;
+    } catch (e) {
+      console.error("Reminder failed", e);
+      return false;
+    }
+  };
+
+  const handleSendReminders = async () => {
     const overdueTasks = tasks.filter(t => dataService.checkMissedReports(t));
     if (overdueTasks.length === 0) {
       alert('目前沒有逾期任務');
@@ -59,42 +98,34 @@ export const Dashboard: React.FC<DashboardProps> = ({ tasks, users, groups, onTa
     let sentCount = 0;
 
     for (const task of overdueTasks) {
-      let emailTo = '';
-      let name = '';
-      if (task.assigneeType === 'USER') {
-        const u = users.find(user => user.id === task.assigneeId);
-        emailTo = u?.email || '';
-        name = u?.name || 'User';
-      } else {
-        // For groups, maybe skip or send to first member? Simplified to skip for now to avoid complexity
-        continue;
-      }
-
-      if (emailTo) {
-        try {
-          await emailjs.send(
-            config.emailJsServiceId,
-            config.emailJsTemplateId, // Use default template, or a specific reminder one if we had it. Using default for now.
-            {
-              to_name: name,
-              to_email: emailTo,
-              message: `【逾期回報提醒】\n您的任務「${task.title}」已超過規定的回報時間 (${task.reportingFrequency})。\n請盡速登入系統回報進度。`,
-              task_link: `${config.systemBaseUrl || window.location.origin}/?taskId=${task.id}`,
-              task_title: task.title,
-              submitter: '系統自動提醒'
-            },
-            config.emailJsPublicKey
-          );
-          sentCount++;
-        } catch (e) {
-          console.error("Reminder failed", e);
-        }
-      }
+      const success = await sendSingleReminder(task, true);
+      if (success) sentCount++;
     }
 
     setIsSendingReminders(false);
     alert(`已發送 ${sentCount} 封催繳信！`);
+    // After manual mass send, update auto-check timestamp to avoid redundant triggers
+    dataService.updateConfig({ lastAutoReminderSentAt: Date.now() });
   };
+
+  // Automated Daily Check
+  useEffect(() => {
+    if (currentUser.role === 'MANAGER' && config && tasks.length > 0) {
+      const lastCheck = config.lastAutoReminderSentAt || 0;
+      const todayStart = new Date().setHours(0, 0, 0, 0);
+
+      if (lastCheck < todayStart) {
+        const overdueTasks = tasks.filter(t => dataService.checkMissedReports(t));
+        if (overdueTasks.length > 0) {
+          console.log("Running daily automated reminders...");
+          handleSendReminders();
+        } else {
+          // Even if no overdue, update flag to avoid checking every mount today
+          dataService.updateConfig({ lastAutoReminderSentAt: Date.now() });
+        }
+      }
+    }
+  }, [config, currentUser, tasks]);
 
   const statusCounts = useMemo(() => {
     return [
@@ -383,17 +414,34 @@ export const Dashboard: React.FC<DashboardProps> = ({ tasks, users, groups, onTa
               一鍵發送催繳信 (Email)
             </button>
           </div>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={missedReportsData}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="name" />
-                <YAxis allowDecimals={false} />
-                <RechartsTooltip />
-                <Legend />
-                <Bar dataKey="count" name="逾期任務數" fill="#EF4444" radius={[4, 4, 0, 0]} barSize={40} />
-              </BarChart>
-            </ResponsiveContainer>
+          <div className="space-y-3">
+            {tasks.filter(t => dataService.checkMissedReports(t)).map(task => {
+              const assigneeName = task.assigneeType === 'USER'
+                ? users.find(u => u.id === task.assigneeId)?.name
+                : groups.find(g => g.id === task.assigneeId)?.name;
+
+              return (
+                <div key={task.id} className="flex items-center justify-between p-3 bg-white rounded-lg border border-red-50 hover:border-red-200 transition">
+                  <div className="flex-1">
+                    <div className="text-sm font-bold text-gray-800">{task.title}</div>
+                    <div className="text-xs text-gray-500">負責人: {assigneeName} | 頻率: {task.reportingFrequency}</div>
+                  </div>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      sendSingleReminder(task).then(success => {
+                        if (success) alert('提醒郵件已寄出！');
+                        else alert('發送失敗，請檢查系統設定。');
+                      });
+                    }}
+                    className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition"
+                    title="發送個別提醒"
+                  >
+                    <Mail size={16} />
+                  </button>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}

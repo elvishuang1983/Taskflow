@@ -469,7 +469,7 @@ export default function App() {
 
         <div className="animate-fade-in-up">
           {view === 'DASHBOARD' && (
-            <Dashboard tasks={tasks} users={users} groups={groups} onTaskClick={handleTaskClick} />
+            <Dashboard tasks={tasks} users={users} groups={groups} currentUser={currentUser} onTaskClick={handleTaskClick} />
           )}
           {view === 'CREATE_TASK' && (
             <TaskForm
