@@ -155,7 +155,7 @@ export const ExecutorView: React.FC<ExecutorViewProps> = ({ task, currentUser, o
         <p className="text-gray-500 mt-2 bg-gray-50 p-4 rounded-lg">{task.description}</p>
         <div className="flex flex-wrap gap-4 text-sm text-gray-500">
           <span className="flex items-center"><Clock size={16} className="mr-1" /> 截止: {new Date(task.dueDate).toLocaleDateString()}</span>
-          <span className="flex items-center"><AlertCircle size={16} className="mr-1" /> 預估: {task.estimatedDuration} 小時</span>
+          <span className="flex items-center"><AlertTriangle size={16} className="mr-1" /> 預估: {task.estimatedDuration} 小時</span>
           {task.reportingFrequency && (
             <span className="flex items-center bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full font-medium">
               回報要求: {{
