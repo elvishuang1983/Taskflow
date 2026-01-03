@@ -36,13 +36,25 @@ export const GanttChart: React.FC<GanttChartProps> = ({ tasks, users, groups }) 
       <div className="min-w-[800px]">
         {/* Timeline Header */}
         <div className="flex border-b pb-2 mb-4">
-          <div className="w-1/4 font-semibold text-gray-500 pl-2">任務名稱</div>
-          <div className="w-3/4 relative h-6 flex justify-between px-1">
-            <span className="text-xs text-gray-400">{formatDate(timelineStart)}</span>
-            <span className="text-xs text-gray-400">{formatDate(timelineStart + (timelineDuration * 0.25))}</span>
-            <span className="text-xs text-gray-400">{formatDate(timelineStart + (timelineDuration * 0.5))}</span>
-            <span className="text-xs text-gray-400">{formatDate(timelineStart + (timelineDuration * 0.75))}</span>
-            <span className="text-xs text-gray-400">{formatDate(timelineEnd)}</span>
+          <div className="w-1/4 font-semibold text-gray-500 pl-2">任務名稱 / 截止日期</div>
+          <div className="w-3/4 relative h-6">
+            {/* Start and End boundary dates */}
+            <span className="absolute left-0 text-[10px] text-gray-300 transform -translate-x-1/2">{formatDate(timelineStart)}</span>
+            <span className="absolute right-0 text-[10px] text-gray-300 transform translate-x-1/2">{formatDate(timelineEnd)}</span>
+
+            {/* Task Due Date markers */}
+            {tasks.map(task => {
+              const pos = ((task.dueDate - timelineStart) / timelineDuration) * 100;
+              return (
+                <span
+                  key={`header-${task.id}`}
+                  className="absolute text-[10px] text-gray-500 font-bold whitespace-nowrap transform -translate-x-1/2"
+                  style={{ left: `${pos}%` }}
+                >
+                  {formatDate(task.dueDate)}
+                </span>
+              );
+            })}
           </div>
         </div>
 
