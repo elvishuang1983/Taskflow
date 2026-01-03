@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { Task, TaskStatus, ProgressLog, User } from '../types';
-import { Send, Upload, Clock, AlertTriangle, ArrowLeft, FileText, Image as ImageIcon, MessageSquare, Save, CheckCircle } from 'lucide-react';
+import { Task, TaskStatus, ProgressLog, User, SubTask } from '../types';
+import { Send, Upload, Clock, AlertTriangle, ArrowLeft, FileText, MessageSquare, Save, CheckCircle } from 'lucide-react';
 
 interface ExecutorViewProps {
   task: Task;
   currentUser: User;
-  onUpdateTask: (task: Task) => Promise<void> | void;
+  onUpdateTask: (id: string, updates: Partial<Task>) => Promise<void> | void;
   onBack: () => void;
 }
 
@@ -55,16 +55,18 @@ export const ExecutorView: React.FC<ExecutorViewProps> = ({ task, currentUser, o
       return;
     }
 
-    const updatedTask: Task = {
-      ...task,
-      progress: Number(progress),
-      status,
-      logs: [newLog, ...task.logs]
+    const updatedTask: Partial<Task> = {
+      progress: progress,
+      status: status,
+      lastReportedAt: Date.now(),
+      // If they had a lastReminderSentAt, and they are reporting NOW, they have responded to the reminder.
+      lastReportedAfterReminder: !!task.lastReminderSentAt,
+      logs: [newLog, ...(task.logs || [])]
     };
 
     try {
       setIsSubmitting(true);
-      await onUpdateTask(updatedTask);
+      await onUpdateTask(task.id, updatedTask);
 
       // Reset form
       setHoursSpent(0);
@@ -94,29 +96,21 @@ export const ExecutorView: React.FC<ExecutorViewProps> = ({ task, currentUser, o
       return log;
     });
 
-    const updatedTask = { ...task, logs: updatedLogs };
-    await onUpdateTask(updatedTask);
-
+    await onUpdateTask(task.id, { logs: updatedLogs });
     setReplyingLogId(null);
     setReplyText('');
   };
 
   const toggleSubtask = async (subtaskId: string) => {
     if (!task.subtasks) return;
-
     const updatedSubtasks = task.subtasks.map(st =>
       st.id === subtaskId ? { ...st, isCompleted: !st.isCompleted } : st
     );
 
-    const updatedTask: Task = {
-      ...task,
-      subtasks: updatedSubtasks
-    };
-
-    await onUpdateTask(updatedTask);
+    // Auto-update progress based on subtasks if desired, but here we just update the subtasks list
+    await onUpdateTask(task.id, { subtasks: updatedSubtasks });
   };
 
-  /* Logic Improvements for "Foolproof" reporting */
   const handleStatusChange = (newStatus: TaskStatus) => {
     setStatus(newStatus);
     if (newStatus === TaskStatus.COMPLETED) {
@@ -129,7 +123,6 @@ export const ExecutorView: React.FC<ExecutorViewProps> = ({ task, currentUser, o
     if (newProgress === 100) {
       setStatus(TaskStatus.COMPLETED);
     } else if (status === TaskStatus.COMPLETED && newProgress < 100) {
-      // If user lowers progress, revert status to In Progress
       setStatus(TaskStatus.IN_PROGRESS);
     }
   };
@@ -145,7 +138,7 @@ export const ExecutorView: React.FC<ExecutorViewProps> = ({ task, currentUser, o
         <div className="flex justify-between items-start">
           <h1 className="text-3xl font-bold text-gray-800">{task.title}</h1>
           <div className={`px-4 py-2 rounded-lg font-bold text-white text-sm
-            ${task.status === TaskStatus.COMPLETED ? 'bg-green-500' :
+              ${task.status === TaskStatus.COMPLETED ? 'bg-green-500' :
               task.status === TaskStatus.BLOCKED ? 'bg-red-500' : 'bg-blue-500'}`}>
             {task.status === TaskStatus.COMPLETED ? '已完成' :
               task.status === TaskStatus.BLOCKED ? '卡關中' :

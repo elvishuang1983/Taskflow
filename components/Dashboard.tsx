@@ -73,13 +73,24 @@ export const Dashboard: React.FC<DashboardProps> = ({ tasks, users, groups, curr
         {
           to_name: name,
           to_email: emailTo,
-          message: `【逾期回報提醒】\n您的任務「${task.title}」已超過規定的回報時間。\n請盡速登入系統回報進度。`,
+          subject: `【任務進度急催】逾期回報警告 - ${task.title}`,
+          message: `【逾期回報催繳通知】\n\n您好 $recipientName，\n\n您的任務「${task.title}」已嚴重超過預定的回報頻率。目前系統偵測到您尚未提交最新的進度報告。\n\n請務必於收到此信後立即登入系統並提交回報，以利專案進度追蹤。\n\n任務連結：${config.systemBaseUrl || window.location.origin}/?taskId=${task.id}\n\n截止日期：${new Date(task.dueDate).toLocaleDateString()}\n回報頻率：${{
+            'HOURLY': '每小時',
+            'DAILY': '每天',
+            'WEEKLY': '每週',
+            'MONTHLY': '每月'
+          }[task.reportingFrequency] || '一般'}\n\n這是一封自動發出的催繳通知，請儘速處理。`,
           task_link: `${config.systemBaseUrl || window.location.origin}/?taskId=${task.id}`,
           task_title: task.title,
-          submitter: '系統自動提醒'
+          submitter: '系統自動催繳'
         },
         config.emailJsPublicKey
       );
+      // Update the task with the last reminder timestamp
+      await dataService.updateTask(task.id, {
+        lastReminderSentAt: Date.now(),
+        lastReportedAfterReminder: false // Reset until they report
+      });
       return true;
     } catch (e) {
       console.error("Reminder failed", e);
@@ -421,23 +432,31 @@ export const Dashboard: React.FC<DashboardProps> = ({ tasks, users, groups, curr
                 : groups.find(g => g.id === task.assigneeId)?.name;
 
               return (
-                <div key={task.id} className="flex items-center justify-between p-3 bg-white rounded-lg border border-red-50 hover:border-red-200 transition">
+                <div key={task.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50 transition-colors">
                   <div className="flex-1">
-                    <div className="text-sm font-bold text-gray-800">{task.title}</div>
-                    <div className="text-xs text-gray-500">負責人: {assigneeName} | 頻率: {task.reportingFrequency}</div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-gray-800">{task.title}</span>
+                      {task.lastReminderSentAt && (
+                        <span className="text-[10px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded flex items-center">
+                          最後催繳: {new Date(task.lastReminderSentAt).toLocaleString()}
+                        </span>
+                      )}
+                      {task.lastReportedAfterReminder && (
+                        <span className="text-[10px] bg-green-100 text-green-600 px-1.5 py-0.5 rounded flex items-center">
+                          催繳後已回報
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">
+                      負責人: {users.find(u => u.id === task.assigneeId)?.name || '未知'} | 頻率: {task.reportingFrequency}
+                    </p>
                   </div>
                   <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      sendSingleReminder(task).then(success => {
-                        if (success) alert('提醒郵件已寄出！');
-                        else alert('發送失敗，請檢查系統設定。');
-                      });
-                    }}
-                    className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition"
-                    title="發送個別提醒"
+                    onClick={() => sendSingleReminder(task)}
+                    className="p-1.5 text-red-500 hover:bg-red-50 rounded-full transition-colors"
+                    title="發送催繳信"
                   >
-                    <Mail size={16} />
+                    <Mail size={18} />
                   </button>
                 </div>
               );

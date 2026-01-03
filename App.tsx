@@ -319,9 +319,13 @@ export default function App() {
   };
 
   // Executor Actions
-  const handleTaskUpdate = async (updatedTask: Task) => {
-    await dataService.updateTask(updatedTask);
-    setSelectedTask(updatedTask);
+  const handleTaskUpdate = async (id: string, updates: Partial<Task>) => {
+    try {
+      await dataService.updateTask(id, updates);
+    } catch (error) {
+      console.error("Failed to update task", error);
+      alert("更新失敗，請檢查網路連線。");
+    }
   };
 
   // --- Render Logic ---

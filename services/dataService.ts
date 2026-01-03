@@ -90,8 +90,8 @@ export const dataService = {
   addTask: async (task: Task) => {
     await setDoc(doc(db, TASKS_COL, task.id), task);
   },
-  updateTask: async (task: Task) => {
-    await setDoc(doc(db, TASKS_COL, task.id), task, { merge: true });
+  updateTask: async (id: string, updates: Partial<Task>) => {
+    await updateDoc(doc(db, TASKS_COL, id), updates);
   },
   deleteTask: async (id: string) => {
     await deleteDoc(doc(db, TASKS_COL, id));

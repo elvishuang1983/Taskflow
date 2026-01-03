@@ -71,4 +71,6 @@ export interface Task {
   progress: number; // 0 to 100
   logs: ProgressLog[];
   subtasks?: SubTask[];
+  lastReminderSentAt?: number; // Timestamp of the last overdue reminder sent
+  lastReportedAfterReminder?: boolean; // True if the user reported after the last reminder
 }
