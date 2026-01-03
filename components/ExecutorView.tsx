@@ -22,6 +22,12 @@ export const ExecutorView: React.FC<ExecutorViewProps> = ({ task, currentUser, o
   const [replyingLogId, setReplyingLogId] = useState<string | null>(null);
   const [replyText, setReplyText] = useState('');
 
+  // Sychronize local state with props when task updates from outside
+  React.useEffect(() => {
+    setProgress(task.progress);
+    setStatus(task.status);
+  }, [task.progress, task.status]);
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const file = e.target.files[0];
@@ -109,8 +115,20 @@ export const ExecutorView: React.FC<ExecutorViewProps> = ({ task, currentUser, o
       st.id === subtaskId ? { ...st, isCompleted: !st.isCompleted } : st
     );
 
-    // Auto-update progress based on subtasks if desired, but here we just update the subtasks list
-    await onUpdateTask(task.id, { subtasks: updatedSubtasks });
+    // Auto-update progress based on subtasks
+    const completedCount = updatedSubtasks.filter(s => s.isCompleted).length;
+    const totalCount = task.subtasks.length;
+    const newProgress = Math.round((completedCount / totalCount) * 100);
+
+    // If progress reaches 100%, set status to completed
+    const newStatus = newProgress === 100 ? TaskStatus.COMPLETED :
+      (task.status === TaskStatus.COMPLETED && newProgress < 100 ? TaskStatus.IN_PROGRESS : task.status);
+
+    await onUpdateTask(task.id, {
+      subtasks: updatedSubtasks,
+      progress: newProgress,
+      status: newStatus
+    });
   };
 
   const handleStatusChange = (newStatus: TaskStatus) => {
@@ -309,8 +327,10 @@ export const ExecutorView: React.FC<ExecutorViewProps> = ({ task, currentUser, o
                 <div className="flex justify-between items-start mb-2">
                   <div className="flex flex-col">
                     <span className="text-xs text-gray-400">{new Date(log.timestamp).toLocaleString()}</span>
-                    {log.reporterName && (
-                      <span className="text-[10px] text-blue-500 font-bold mt-0.5">回報者: {log.reporterName}</span>
+                    {(log.reporterName || log.reporterId) && (
+                      <span className="text-[10px] text-blue-500 font-bold mt-0.5">
+                        回報者: {log.reporterName || `未知 (${log.reporterId?.substring(0, 5)})`}
+                      </span>
                     )}
                   </div>
                   <span className="text-xs font-bold bg-gray-100 px-2 py-1 rounded text-gray-600">+{log.hoursSpent} hr</span>
