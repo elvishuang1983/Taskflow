@@ -14,6 +14,7 @@ const CONFIG_COL = 'system_config';
 export interface SystemConfig {
   emailJsServiceId: string;
   emailJsTemplateId: string;
+  emailJsReminderTemplateId?: string;
   emailJsPublicKey: string;
   systemBaseUrl?: string;
   notificationPreference?: 'EMAILJS' | 'OUTLOOK';

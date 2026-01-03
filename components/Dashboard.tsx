@@ -69,7 +69,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ tasks, users, groups, curr
     try {
       await emailjs.send(
         config.emailJsServiceId,
-        config.emailJsTemplateId,
+        config.emailJsReminderTemplateId || config.emailJsTemplateId,
         {
           to_name: name,
           to_email: emailTo,

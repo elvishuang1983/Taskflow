@@ -42,6 +42,15 @@ export const GanttChart: React.FC<GanttChartProps> = ({ tasks, users, groups }) 
             <span className="absolute left-0 text-[10px] text-gray-300 transform -translate-x-1/2">{formatDate(timelineStart)}</span>
             <span className="absolute right-0 text-[10px] text-gray-300 transform translate-x-1/2">{formatDate(timelineEnd)}</span>
 
+            {/* Today Label */}
+            <span
+              className="absolute top-[-20px] text-[10px] text-green-600 font-bold whitespace-nowrap transform -translate-x-1/2 flex flex-col items-center"
+              style={{ left: `${((Date.now() - timelineStart) / timelineDuration) * 100}%` }}
+            >
+              Today
+              <div className="w-1 h-1 bg-green-500 rounded-full mt-0.5"></div>
+            </span>
+
             {/* Task Due Date markers */}
             {tasks.map(task => {
               const pos = ((task.dueDate - timelineStart) / timelineDuration) * 100;
@@ -81,7 +90,7 @@ export const GanttChart: React.FC<GanttChartProps> = ({ tasks, users, groups }) 
                 </div>
                 <div className="w-3/4 relative h-8">
                   {/* Today Marker Line */}
-                  <div className="absolute top-0 bottom-0 border-l border-dashed border-red-400 z-10 opacity-30 pointer-events-none" style={{ left: `${todayLeft}%` }}></div>
+                  <div className="absolute top-0 bottom-0 border-l-2 border-dashed border-green-500 z-10 opacity-60 pointer-events-none" style={{ left: `${todayLeft}%` }}></div>
 
                   {/* Task Duration Bar (The Container) */}
                   <div
