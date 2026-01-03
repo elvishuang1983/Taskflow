@@ -60,6 +60,10 @@ export const GanttChart: React.FC<GanttChartProps> = ({ tasks, users, groups }) 
 
             return (
               <div key={task.id} className="flex items-center group relative py-1">
+                <div className="w-1/4 pr-4">
+                  <div className="font-medium text-gray-800 truncate" title={task.title}>{task.title}</div>
+                  <div className="text-xs text-gray-500">{getAssigneeName(task)}</div>
+                </div>
                 <div className="w-3/4 relative h-8">
                   {/* Today Marker Line */}
                   <div className="absolute top-0 bottom-0 border-l border-dashed border-red-400 z-10 opacity-30 pointer-events-none" style={{ left: `${todayLeft}%` }}></div>
