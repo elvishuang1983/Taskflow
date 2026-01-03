@@ -45,7 +45,9 @@ export const ExecutorView: React.FC<ExecutorViewProps> = ({ task, currentUser, o
       hoursSpent: Number(hoursSpent),
       comment,
       attachmentName: fileName || null,
-      attachmentData: fileData || null
+      attachmentData: fileData || null,
+      reporterId: currentUser.id,
+      reporterName: currentUser.name
     };
 
     // Basic Size Check (approx 800KB limit for safety, Firestore is 1MB)
@@ -305,7 +307,12 @@ export const ExecutorView: React.FC<ExecutorViewProps> = ({ task, currentUser, o
               <div key={log.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 relative pl-6">
                 <div className="absolute left-0 top-4 bottom-4 w-1 bg-gray-200 rounded-r"></div>
                 <div className="flex justify-between items-start mb-2">
-                  <span className="text-xs text-gray-400">{new Date(log.timestamp).toLocaleString()}</span>
+                  <div className="flex flex-col">
+                    <span className="text-xs text-gray-400">{new Date(log.timestamp).toLocaleString()}</span>
+                    {log.reporterName && (
+                      <span className="text-[10px] text-blue-500 font-bold mt-0.5">回報者: {log.reporterName}</span>
+                    )}
+                  </div>
                   <span className="text-xs font-bold bg-gray-100 px-2 py-1 rounded text-gray-600">+{log.hoursSpent} hr</span>
                 </div>
                 <p className="text-gray-700 text-sm mb-2 whitespace-pre-wrap">{log.comment}</p>

@@ -173,14 +173,15 @@ export default function App() {
   // Manager State
   const [view, setView] = useState<ViewMode>('DASHBOARD');
 
-  // Executor State
-  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
-
   // Data State
   const [tasks, setTasks] = useState<Task[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Executor State
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const selectedTask = tasks.find(t => t.id === selectedTaskId) || null;
 
   // Real-time Subscriptions
   useEffect(() => {
@@ -245,7 +246,7 @@ export default function App() {
             groups.find(g => g.id === task.assigneeId)?.memberIds.includes(user.id);
 
           if (isAssigned) {
-            setSelectedTask(task);
+            setSelectedTaskId(task.id);
             window.history.replaceState({}, '', window.location.pathname);
             setPendingTaskId(null);
             return;
@@ -254,7 +255,7 @@ export default function App() {
           }
         } else {
           // Manager
-          setSelectedTask(task);
+          setSelectedTaskId(task.id);
         }
       }
       window.history.replaceState({}, '', window.location.pathname);
@@ -266,11 +267,12 @@ export default function App() {
     } else {
       setView('DASHBOARD');
     }
-    setSelectedTask(null);
+    setSelectedTaskId(null);
   };
 
   const handleLogout = () => {
     setCurrentUser(null);
+    setSelectedTaskId(null);
     localStorage.removeItem('currentUser');
     setPendingTaskId(null);
     window.history.replaceState({}, '', window.location.pathname);
@@ -314,7 +316,7 @@ export default function App() {
   };
 
   const handleTaskClick = (task: Task) => {
-    setSelectedTask(task);
+    setSelectedTaskId(task.id);
     setView('TASK_DETAIL');
   };
 
@@ -354,7 +356,7 @@ export default function App() {
             task={selectedTask}
             currentUser={currentUser}
             onUpdateTask={handleTaskUpdate}
-            onBack={() => setSelectedTask(null)}
+            onBack={() => setSelectedTaskId(null)}
           />
         </div>
       );
@@ -379,7 +381,7 @@ export default function App() {
           currentUser={currentUser}
           tasks={myTasks}
           groups={groups}
-          onSelectTask={setSelectedTask}
+          onSelectTask={(t) => setSelectedTaskId(t.id)}
           onLogout={handleLogout}
         />
       </div>
@@ -504,7 +506,7 @@ export default function App() {
               task={selectedTask}
               currentUser={currentUser}
               onUpdateTask={handleTaskUpdate}
-              onBack={() => { setSelectedTask(null); setView('DASHBOARD'); }}
+              onBack={() => { setSelectedTaskId(null); setView('DASHBOARD'); }}
             />
           )}
         </div>

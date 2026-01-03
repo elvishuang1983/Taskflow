@@ -45,6 +45,8 @@ export interface ProgressLog {
   attachmentData?: string; // Base64 string for local storage persistence
   managerReply?: string; // Manager's comment
   managerReplyAt?: number; // Timestamp of the reply
+  reporterId?: string; // ID of the person who submitted this log
+  reporterName?: string; // Name of the person who submitted this log
 }
 
 export interface SubTask {
