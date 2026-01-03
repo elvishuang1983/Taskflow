@@ -78,6 +78,9 @@ export const dataService = {
   addGroup: async (group: Group) => {
     await setDoc(doc(db, GROUPS_COL, group.id), group);
   },
+  updateGroup: async (group: Group) => {
+    await setDoc(doc(db, GROUPS_COL, group.id), group, { merge: true });
+  },
   deleteGroup: async (id: string) => {
     await deleteDoc(doc(db, GROUPS_COL, id));
   },

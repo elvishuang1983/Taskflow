@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { User, Group, Task, TaskStatus, ReportingFrequency } from '../types';
-import { Calendar, Clock, User as UserIcon, Users, Mail, CheckCircle, Copy, Link as LinkIcon } from 'lucide-react';
+import { Calendar, Clock, User as UserIcon, Users, Mail, CheckCircle, Copy, Link as LinkIcon, Plus, Trash2 } from 'lucide-react';
 import { dataService } from '../services/dataService';
 import emailjs from '@emailjs/browser';
 
@@ -21,6 +21,20 @@ export const TaskForm: React.FC<TaskFormProps> = ({ users, groups, currentUserNa
   const [duration, setDuration] = useState(8);
   const [reminder, setReminder] = useState<ReportingFrequency>(ReportingFrequency.DAILY);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Subtasks State
+  const [subtasks, setSubtasks] = useState<{ id: string; title: string }[]>([]);
+  const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
+
+  const addSubtask = () => {
+    if (!newSubtaskTitle.trim()) return;
+    setSubtasks([...subtasks, { id: `st-${Date.now()}`, title: newSubtaskTitle.trim() }]);
+    setNewSubtaskTitle('');
+  };
+
+  const removeSubtask = (id: string) => {
+    setSubtasks(subtasks.filter(st => st.id !== id));
+  };
 
   // Success Modal State
   const [showSuccess, setShowSuccess] = useState(false);
@@ -96,6 +110,15 @@ export const TaskForm: React.FC<TaskFormProps> = ({ users, groups, currentUserNa
     const taskLink = `${cleanBaseUrl}?taskId=${task.id}`;
     const nowStr = new Date().toLocaleString('zh-TW');
 
+    const frequencyLabels: Record<string, string> = {
+      'NONE': '不強制',
+      'HOURLY': '每小時',
+      'DAILY': '每天',
+      'WEEKLY': '每週',
+      'MONTHLY': '每月'
+    };
+    const freqLabel = frequencyLabels[task.reportingFrequency] || task.reportingFrequency;
+
     setEmailStatus('SENDING');
     try {
       await emailjs.send(
@@ -118,6 +141,7 @@ export const TaskForm: React.FC<TaskFormProps> = ({ users, groups, currentUserNa
 ${task.description || '無'}
 
 截止日期：${new Date(task.dueDate).toLocaleDateString()}
+回報要求：${freqLabel}
 
 請點擊以下連結回報進度：
 ${taskLink}
@@ -130,7 +154,8 @@ ${taskLink}
           task_title: task.title,
           task_id: task.id,
           created_at: nowStr,
-          due_date: new Date(task.dueDate).toLocaleDateString()
+          due_date: new Date(task.dueDate).toLocaleDateString(),
+          reporting_frequency: freqLabel
         }
       );
       setEmailStatus('SUCCESS');
@@ -159,7 +184,8 @@ ${taskLink}
       reportingFrequency: reminder,
       status: TaskStatus.PENDING,
       progress: 0,
-      logs: []
+      logs: [],
+      subtasks: subtasks.map(st => ({ ...st, isCompleted: false }))
     };
 
     try {
@@ -332,6 +358,45 @@ TaskFlow Pro 系統通知`;
             value={description}
             onChange={e => setDescription(e.target.value)}
           />
+        </div>
+
+        {/* Subtasks Section */}
+        <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
+          <label className="block text-sm font-bold text-blue-800 mb-2 flex items-center">
+            <CheckCircle size={16} className="mr-2" /> 子任務 (Subtasks)
+          </label>
+          <div className="flex space-x-2 mb-3">
+            <input
+              type="text"
+              className="flex-1 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm"
+              placeholder="新增子任務..."
+              value={newSubtaskTitle}
+              onChange={e => setNewSubtaskTitle(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addSubtask(); } }}
+            />
+            <button
+              type="button"
+              onClick={addSubtask}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+            >
+              <Plus size={18} />
+            </button>
+          </div>
+          <div className="space-y-2">
+            {subtasks.map(st => (
+              <div key={st.id} className="flex items-center justify-between bg-white p-2 rounded border border-blue-200 text-sm shadow-sm animate-fade-in">
+                <span className="text-gray-700">{st.title}</span>
+                <button
+                  type="button"
+                  onClick={() => removeSubtask(st.id)}
+                  className="text-red-400 hover:text-red-600 transition"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            ))}
+            {subtasks.length === 0 && <p className="text-xs text-blue-400 text-center py-2 italic font-medium">尚無子任務 (選填)</p>}
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

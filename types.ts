@@ -47,6 +47,12 @@ export interface ProgressLog {
   managerReplyAt?: number; // Timestamp of the reply
 }
 
+export interface SubTask {
+  id: string;
+  title: string;
+  isCompleted: boolean;
+}
+
 export interface Task {
   id: string;
   title: string;
@@ -64,4 +70,5 @@ export interface Task {
   status: TaskStatus;
   progress: number; // 0 to 100
   logs: ProgressLog[];
+  subtasks?: SubTask[];
 }

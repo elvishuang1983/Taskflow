@@ -127,27 +127,29 @@ export const Dashboard: React.FC<DashboardProps> = ({ tasks, users, groups, onTa
     }));
   }, [tasks, users, groups]);
 
-  // Workload by User (Stacked Bar Chart)
+  // Workload by User (Stacked Bar Chart with Hours)
   const workloadData = useMemo(() => {
-    const userStats: Record<string, { name: string; pending: number; inProgress: number; completed: number; blocked: number }> = {};
+    const userStats: Record<string, { name: string; estimated: number; actual: number; taskCount: number }> = {};
 
     // Initialize all users
     users.forEach(u => {
-      userStats[u.id] = { name: u.name, pending: 0, inProgress: 0, completed: 0, blocked: 0 };
+      userStats[u.id] = { name: u.name, estimated: 0, actual: 0, taskCount: 0 };
     });
 
     tasks.forEach(task => {
       if (task.assigneeType === 'USER' && userStats[task.assigneeId]) {
         const stats = userStats[task.assigneeId];
-        if (task.status === TaskStatus.PENDING) stats.pending++;
-        else if (task.status === TaskStatus.IN_PROGRESS) stats.inProgress++;
-        else if (task.status === TaskStatus.COMPLETED) stats.completed++;
-        else if (task.status === TaskStatus.BLOCKED) stats.blocked++;
+        stats.estimated += task.estimatedDuration || 0;
+        stats.taskCount++;
+
+        // Sum actual hours from logs
+        const actual = task.logs.reduce((sum, log) => sum + (log.hoursSpent || 0), 0);
+        stats.actual += actual;
       }
       // For Groups, we skip or could split (simplified for now to just show Users)
     });
 
-    return Object.values(userStats).filter(s => (s.pending + s.inProgress + s.completed + s.blocked) > 0);
+    return Object.values(userStats).filter(s => s.taskCount > 0);
   }, [tasks, users]);
 
 
@@ -292,7 +294,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ tasks, users, groups, onTa
                         className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                       />
                     </td>
-                    <td className="px-4 py-3 font-medium text-gray-800">{task.title}</td>
+                    <td className="px-4 py-3 font-medium text-gray-800">
+                      <div>{task.title}</div>
+                      {task.subtasks && task.subtasks.length > 0 && (
+                        <div className="text-[10px] text-gray-400 flex items-center mt-0.5">
+                          <CheckCircle2 size={10} className="mr-1" />
+                          子任務: {task.subtasks.filter(s => s.isCompleted).length}/{task.subtasks.length}
+                        </div>
+                      )}
+                    </td>
                     <td className="px-4 py-3 text-gray-600">{assigneeName}</td>
                     <td className="px-4 py-3 text-gray-500">{new Date(task.dueDate).toLocaleDateString()}</td>
                     <td className="px-4 py-3">
@@ -337,19 +347,17 @@ export const Dashboard: React.FC<DashboardProps> = ({ tasks, users, groups, onTa
 
       {/* User Workload Chart */}
       <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-        <h3 className="text-lg font-bold text-gray-800 mb-4">人員工作量統計 (Tasks by User)</h3>
+        <h3 className="text-lg font-bold text-gray-800 mb-4">人員工作量統計 (Hours by User)</h3>
         <div className="h-64">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={workloadData}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} />
               <XAxis dataKey="name" />
-              <YAxis allowDecimals={false} />
+              <YAxis />
               <RechartsTooltip />
               <Legend />
-              <Bar dataKey="completed" name="已完成" stackId="a" fill="#22C55E" barSize={40} />
-              <Bar dataKey="inProgress" name="進行中" stackId="a" fill="#3B82F6" barSize={40} />
-              <Bar dataKey="blocked" name="卡關" stackId="a" fill="#EF4444" barSize={40} />
-              <Bar dataKey="pending" name="待處理" stackId="a" fill="#9CA3AF" radius={[4, 4, 0, 0]} barSize={40} />
+              <Bar dataKey="estimated" name="預估總工時" fill="#9CA3AF" barSize={30} />
+              <Bar dataKey="actual" name="實際總工時" fill="#3B82F6" barSize={30} />
             </BarChart>
           </ResponsiveContainer>
         </div>

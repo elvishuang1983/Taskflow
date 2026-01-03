@@ -197,6 +197,19 @@ export default function App() {
     const tid = params.get('taskId');
     if (tid) setPendingTaskId(tid);
 
+    // 3. AUTO-LOGIN from localStorage
+    const savedUser = localStorage.getItem('currentUser');
+    if (savedUser) {
+      try {
+        const user = JSON.parse(savedUser);
+        setCurrentUser(user);
+        // If there was a pending task, it will be handled by the next effect or manual trigger
+      } catch (e) {
+        console.error("Failed to parse saved user", e);
+        localStorage.removeItem('currentUser');
+      }
+    }
+
     return () => {
       unsubscribeUsers();
       unsubscribeGroups();
@@ -215,12 +228,14 @@ export default function App() {
     await dataService.addUser(newAdmin);
     // Auto login
     setCurrentUser(newAdmin);
+    localStorage.setItem('currentUser', JSON.stringify(newAdmin));
     setView('USER_MANAGEMENT');
     alert(`歡迎 ${name}！系統已初始化。請先至「人員與群組」新增您的團隊成員。`);
   };
 
   const handleLogin = (user: User) => {
     setCurrentUser(user);
+    localStorage.setItem('currentUser', JSON.stringify(user));
 
     if (pendingTaskId) {
       const task = tasks.find(t => t.id === pendingTaskId);
@@ -256,6 +271,7 @@ export default function App() {
 
   const handleLogout = () => {
     setCurrentUser(null);
+    localStorage.removeItem('currentUser');
     setPendingTaskId(null);
     window.history.replaceState({}, '', window.location.pathname);
   };
@@ -285,6 +301,10 @@ export default function App() {
 
   const handleGroupAdd = async (group: Group) => {
     await dataService.addGroup(group);
+  };
+
+  const handleGroupUpdate = async (group: Group) => {
+    await dataService.updateGroup(group);
   };
 
   const handleGroupDelete = async (id: string) => {
@@ -468,6 +488,7 @@ export default function App() {
               onUpdateUser={handleUserUpdate}
               onDeleteUser={handleUserDelete}
               onAddGroup={handleGroupAdd}
+              onUpdateGroup={handleGroupUpdate}
               onDeleteGroup={handleGroupDelete}
             />
           )}

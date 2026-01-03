@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Task, TaskStatus, ProgressLog, User } from '../types';
-import { Send, Upload, Clock, AlertTriangle, ArrowLeft, FileText, Image as ImageIcon, MessageSquare, Save } from 'lucide-react';
+import { Send, Upload, Clock, AlertTriangle, ArrowLeft, FileText, Image as ImageIcon, MessageSquare, Save, CheckCircle } from 'lucide-react';
 
 interface ExecutorViewProps {
   task: Task;
@@ -101,6 +101,21 @@ export const ExecutorView: React.FC<ExecutorViewProps> = ({ task, currentUser, o
     setReplyText('');
   };
 
+  const toggleSubtask = async (subtaskId: string) => {
+    if (!task.subtasks) return;
+
+    const updatedSubtasks = task.subtasks.map(st =>
+      st.id === subtaskId ? { ...st, isCompleted: !st.isCompleted } : st
+    );
+
+    const updatedTask: Task = {
+      ...task,
+      subtasks: updatedSubtasks
+    };
+
+    await onUpdateTask(updatedTask);
+  };
+
   /* Logic Improvements for "Foolproof" reporting */
   const handleStatusChange = (newStatus: TaskStatus) => {
     setStatus(newStatus);
@@ -150,6 +165,41 @@ export const ExecutorView: React.FC<ExecutorViewProps> = ({ task, currentUser, o
           </div>
         )}
       </div>
+
+      {/* Subtasks Tracking Section */}
+      {task.subtasks && task.subtasks.length > 0 && (
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+          <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center">
+            <CheckCircle size={20} className="mr-2 text-green-600" /> 子任務清單 (Subtasks)
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {task.subtasks.map(st => (
+              <div
+                key={st.id}
+                onClick={() => toggleSubtask(st.id)}
+                className={`flex items-center p-3 rounded-lg border transition cursor-pointer ${st.isCompleted ? 'bg-green-50 border-green-300 text-green-700' : 'bg-gray-50 border-gray-100 text-gray-700 hover:border-blue-200'
+                  }`}
+              >
+                <div className={`w-5 h-5 rounded border mr-3 flex items-center justify-center transition ${st.isCompleted ? 'bg-green-500 border-green-500' : 'bg-white border-gray-300'
+                  }`}>
+                  {st.isCompleted && <CheckCircle size={14} className="text-white" />}
+                </div>
+                <span className={`text-sm ${st.isCompleted ? 'line-through text-gray-400' : 'font-medium'}`}>{st.title}</span>
+              </div>
+            ))}
+          </div>
+          {/* Progress of subtasks */}
+          <div className="mt-6 flex items-center justify-between text-xs text-gray-500 bg-gray-50 p-3 rounded-lg border border-gray-100">
+            <span className="font-bold">子任務達成率: {task.subtasks.filter(s => s.isCompleted).length} / {task.subtasks.length}</span>
+            <div className="w-1/2 h-2 bg-gray-200 rounded-full overflow-hidden shadow-inner">
+              <div
+                className="h-full bg-green-500 transition-all duration-500 ease-out"
+                style={{ width: `${(task.subtasks.filter(s => s.isCompleted).length / task.subtasks.length) * 100}%` }}
+              ></div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Report Form */}
